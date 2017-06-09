@@ -7,10 +7,16 @@ from __future__ import print_function
 import numpy as np
 import itertools
 
+from ..aprclass import Approach_elph
+from ..specfuncc cimport Func_pauli_elph
+
 from qmeq.mytypes import doublenp
 from qmeq.mytypes import complexnp
 
-from ..specfuncc cimport Func_pauli_elph
+from qmeq.approach.c_lindblad import c_generate_tLba
+from qmeq.approach.c_lindblad import c_generate_kern_lindblad
+from qmeq.approach.c_lindblad import c_generate_current_lindblad
+from qmeq.approach.c_lindblad import c_generate_vec_lindblad
 
 cimport numpy as np
 cimport cython
@@ -28,7 +34,7 @@ from libc.math cimport sqrt
 #---------------------------------------------------------------------------------------------------------
 @cython.cdivision(True)
 @cython.boundscheck(False)
-def c_elph_generate_tLbbp(sys):
+def c_generate_tLbbp_elph(sys):
     cdef np.ndarray[complex_t, ndim=3] Vbbp = sys.baths.Vbbp
     cdef np.ndarray[double_t, ndim=1] E = sys.qd.Ea
     si = sys.si
@@ -55,10 +61,11 @@ def c_elph_generate_tLbbp(sys):
             for l in range(nbaths):
                 func_pauli.eval(Ebbp, l)
                 tLbbp[l, b, bp] = sqrt(func_pauli.val)*Vbbp[l, b, bp]
-    return tLbbp
+    sys.tLbbp = tLbbp
+    return 0
 
 @cython.boundscheck(False)
-def c_elph_generate_kern_lindblad(sys):
+def c_generate_kern_lindblad_elph(sys):
     cdef np.ndarray[double_t, ndim=1] E = sys.qd.Ea
     cdef np.ndarray[complex_t, ndim=3] tLbbp = sys.tLbbp
     si = sys.si
@@ -154,5 +161,17 @@ def c_elph_generate_kern_lindblad(sys):
         for b in si.statesdm[charge]:
             bb = mapdm0[lenlst[charge]*dictdm[b] + dictdm[b] + shiftlst0[charge]]
             kern[norm_row, bb] += 1
-    return kern
+    sys.kern = kern
+    return 0
+
+class Approach_Lindblad(Approach_elph):
+
+    kerntype = 'Lindblad'
+    generate_fct = c_generate_tLba
+    generate_kern = c_generate_kern_lindblad
+    generate_current = c_generate_current_lindblad
+    generate_vec = c_generate_vec_lindblad
+    #
+    generate_kern_elph = c_generate_kern_lindblad_elph
+    generate_fct_elph = c_generate_tLbbp_elph
 #---------------------------------------------------------------------------------------------------------

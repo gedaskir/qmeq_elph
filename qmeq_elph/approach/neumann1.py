@@ -6,11 +6,18 @@ from __future__ import print_function
 import numpy as np
 import itertools
 
-from qmeq.mytypes import complexnp
-from qmeq.mytypes import doublenp
+from ..aprclass import Approach_elph
 from ..specfunc import Func_1vN_elph
 
-def elph_generate_w1fct(sys):
+from qmeq.mytypes import complexnp
+from qmeq.mytypes import doublenp
+
+from qmeq.approach.neumann1 import generate_phi1fct
+from qmeq.approach.neumann1 import generate_kern_1vN
+from qmeq.approach.neumann1 import generate_current_1vN
+from qmeq.approach.neumann1 import generate_vec_1vN
+
+def generate_w1fct_elph(sys):
     (E, si) = (sys.qd.Ea, sys.si)
     w1fct = np.zeros((si.nbaths, si.ndm0, 2, 2), dtype=complexnp)
     func_1vN_elph = Func_1vN_elph(sys.baths.tlst, sys.baths.dlst,
@@ -41,12 +48,13 @@ def elph_generate_w1fct(sys):
                     func_1vN_elph.eval(-Ebbp, l)
                     w1fct[l, bbp, 0, 0] = func_1vN_elph.val0
                     w1fct[l, bbp, 1, 0] = func_1vN_elph.val1
-    return w1fct
+    sys.w1fct = w1fct
+    return 0
 
 #---------------------------------------------------------------------------------------------------------
 # 1 von Neumann approach
 #---------------------------------------------------------------------------------------------------------
-def elph_generate_kern_1vN(sys):
+def generate_kern_1vN_elph(sys):
     (E, Vbbp, w1fct, si, symq, norm_rowp) = (sys.qd.Ea, sys.baths.Vbbp, sys.w1fct, sys.si, sys.funcp.symq, sys.funcp.norm_row)
     norm_row = norm_rowp if symq else si.ndm0r
     last_row = si.ndm0r-1 if symq else si.ndm0r
@@ -158,5 +166,17 @@ def elph_generate_kern_1vN(sys):
         for b in si.statesdm[charge]:
             bb = si.get_ind_dm0(b, b, charge)
             kern[norm_row, bb] += 1
-    return kern
+    sys.kern = kern
+    return 0
+
+class Approach_py1vN(Approach_elph):
+
+    kerntype = 'py1vN'
+    generate_fct = staticmethod(generate_phi1fct)
+    generate_kern = staticmethod(generate_kern_1vN)
+    generate_current = staticmethod(generate_current_1vN)
+    generate_vec = staticmethod(generate_vec_1vN)
+    #
+    generate_kern_elph = staticmethod(generate_kern_1vN_elph)
+    generate_fct_elph = staticmethod(generate_w1fct_elph)
 #---------------------------------------------------------------------------------------------------------

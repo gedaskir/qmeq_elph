@@ -9,8 +9,16 @@ from __future__ import print_function
 import numpy as np
 import itertools
 
+from .c_neumann1 import c_generate_w1fct_elph
+from ..aprclass import Approach_elph
+
 from qmeq.mytypes import doublenp
 from qmeq.mytypes import complexnp
+
+from qmeq.approach.c_neumann1 import c_generate_phi1fct
+from qmeq.approach.c_redfield import c_generate_kern_redfield
+from qmeq.approach.c_redfield import c_generate_current_redfield
+from qmeq.approach.c_redfield import c_generate_vec_redfield
 
 cimport numpy as np
 cimport cython
@@ -25,7 +33,7 @@ ctypedef np.complex128_t complex_t
 # Redfield approach
 #---------------------------------------------------------------------------------------------------------
 @cython.boundscheck(False)
-def c_elph_generate_kern_redfield(sys):
+def c_generate_kern_redfield_elph(sys):
     cdef np.ndarray[double_t, ndim=1] E = sys.qd.Ea
     cdef np.ndarray[complex_t, ndim=3] Vbbp = sys.baths.Vbbp
     cdef np.ndarray[complex_t, ndim=4] w1fct = sys.w1fct
@@ -166,5 +174,16 @@ def c_elph_generate_kern_redfield(sys):
         for b in si.statesdm[charge]:
             bb = mapdm0[lenlst[charge]*dictdm[b] + dictdm[b] + shiftlst0[charge]]
             kern[norm_row, bb] += 1
-    return kern
+    sys.kern = kern
+    return 0
 
+class Approach_Redfield(Approach_elph):
+
+    kerntype = 'Redfield'
+    generate_fct = c_generate_phi1fct
+    generate_kern = c_generate_kern_redfield
+    generate_current = c_generate_current_redfield
+    generate_vec = c_generate_vec_redfield
+    #
+    generate_kern_elph = c_generate_kern_redfield_elph
+    generate_fct_elph = c_generate_w1fct_elph

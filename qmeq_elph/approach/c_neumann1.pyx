@@ -9,10 +9,16 @@ from __future__ import print_function
 import numpy as np
 import itertools
 
+from ..aprclass import Approach_elph
+from ..specfuncc cimport Func_1vN_elph
+
 from qmeq.mytypes import doublenp
 from qmeq.mytypes import complexnp
 
-from ..specfuncc cimport Func_1vN_elph
+from qmeq.approach.c_neumann1 import c_generate_phi1fct
+from qmeq.approach.c_neumann1 import c_generate_kern_1vN
+from qmeq.approach.c_neumann1 import c_generate_current_1vN
+from qmeq.approach.c_neumann1 import c_generate_vec_1vN
 
 cimport numpy as np
 cimport cython
@@ -24,7 +30,7 @@ ctypedef np.float64_t double_t
 ctypedef np.complex128_t complex_t
 
 @cython.boundscheck(False)
-def c_elph_generate_w1fct(sys):
+def c_generate_w1fct_elph(sys):
     cdef np.ndarray[double_t, ndim=1] E = sys.qd.Ea
     si = sys.si
     #
@@ -72,13 +78,14 @@ def c_elph_generate_w1fct(sys):
                     func_1vN_elph.eval(-Ebbp, l)
                     w1fct[l, bbp, 0, 0] = func_1vN_elph.val0
                     w1fct[l, bbp, 1, 0] = func_1vN_elph.val1
-    return w1fct
+    sys.w1fct = w1fct
+    return 0
 
 #---------------------------------------------------------------------------------------------------------
 # 1 von Neumann approach
 #---------------------------------------------------------------------------------------------------------
 @cython.boundscheck(False)
-def c_elph_generate_kern_1vN(sys):
+def c_generate_kern_1vN_elph(sys):
     cdef np.ndarray[double_t, ndim=1] E = sys.qd.Ea
     cdef np.ndarray[complex_t, ndim=3] Vbbp = sys.baths.Vbbp
     cdef np.ndarray[complex_t, ndim=4] w1fct = sys.w1fct
@@ -219,5 +226,17 @@ def c_elph_generate_kern_1vN(sys):
         for b in si.statesdm[charge]:
             bb = mapdm0[lenlst[charge]*dictdm[b] + dictdm[b] + shiftlst0[charge]]
             kern[norm_row, bb] += 1
-    return kern
+    sys.kern = kern
+    return 0
+
+class Approach_1vN(Approach_elph):
+
+    kerntype = '1vN'
+    generate_fct = c_generate_phi1fct
+    generate_kern = c_generate_kern_1vN
+    generate_current = c_generate_current_1vN
+    generate_vec = c_generate_vec_1vN
+    #
+    generate_kern_elph = c_generate_kern_1vN_elph
+    generate_fct_elph = c_generate_w1fct_elph
 #---------------------------------------------------------------------------------------------------------

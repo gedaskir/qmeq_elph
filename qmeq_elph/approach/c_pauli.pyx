@@ -9,9 +9,16 @@ from __future__ import print_function
 import numpy as np
 import itertools
 
+from ..aprclass import Approach_elph
+from ..specfuncc cimport Func_pauli_elph
+
 from qmeq.mytypes import complexnp
 from qmeq.mytypes import doublenp
-from ..specfuncc cimport Func_pauli_elph
+
+from qmeq.approach.c_pauli import c_generate_paulifct
+from qmeq.approach.c_pauli import c_generate_kern_pauli
+from qmeq.approach.c_pauli import c_generate_current_pauli
+from qmeq.approach.c_pauli import c_generate_vec_pauli
 
 cimport numpy as np
 cimport cython
@@ -23,7 +30,7 @@ ctypedef np.float64_t double_t
 ctypedef np.complex128_t complex_t
 
 @cython.boundscheck(False)
-def c_elph_generate_paulifct(sys):
+def c_generate_paulifct_elph(sys):
     cdef np.ndarray[double_t, ndim=1] E = sys.qd.Ea
     cdef np.ndarray[complex_t, ndim=3] Vbbp = sys.baths.Vbbp
     si = sys.si
@@ -53,13 +60,14 @@ def c_elph_generate_paulifct(sys):
                 paulifct[l, bbp, 1] = xbbp*func_pauli.val
                 func_pauli.eval(-Ebbp, l)
                 paulifct[l, bbp, 0] = xbbp*func_pauli.val
-    return paulifct
+    sys.paulifct_elph = paulifct
+    return 0
 
 #---------------------------------------------------------------------------------------------------------
 # Pauli master equation
 #---------------------------------------------------------------------------------------------------------
 @cython.boundscheck(False)
-def c_elph_generate_kern_pauli(sys):
+def c_generate_kern_pauli_elph(sys):
     cdef np.ndarray[double_t, ndim=3] paulifct = sys.paulifct_elph
     si = sys.si
     cdef bint symq = sys.funcp.symq
@@ -100,5 +108,17 @@ def c_elph_generate_kern_pauli(sys):
                     for l in range(nbaths):
                         kern[bb, bb] = kern[bb, bb] - paulifct[l, ba, not ba_conj]
                         kern[bb, aa] = kern[bb, aa] + paulifct[l, ba, ba_conj]
-    return kern
+    sys.kern = kern
+    return 0
+
+class Approach_Pauli(Approach_elph):
+
+    kerntype = 'Pauli'
+    generate_fct = c_generate_paulifct
+    generate_kern = c_generate_kern_pauli
+    generate_current = c_generate_current_pauli
+    generate_vec = c_generate_vec_pauli
+    #
+    generate_kern_elph = c_generate_kern_pauli_elph
+    generate_fct_elph = c_generate_paulifct_elph
 #---------------------------------------------------------------------------------------------------------

@@ -6,15 +6,21 @@ from __future__ import print_function
 import numpy as np
 import itertools
 
-from qmeq.mytypes import complexnp
-from qmeq.mytypes import doublenp
+from ..aprclass import Approach_elph
 from ..specfunc import Func_pauli_elph
 
+from qmeq.mytypes import complexnp
+from qmeq.mytypes import doublenp
+
+from qmeq.approach.lindblad import generate_tLba
+from qmeq.approach.lindblad import generate_kern_lindblad
+from qmeq.approach.lindblad import generate_current_lindblad
+from qmeq.approach.lindblad import generate_vec_lindblad
 
 #---------------------------------------------------------------------------------------------------------
 # Lindblad approach
 #---------------------------------------------------------------------------------------------------------
-def elph_generate_tLbbp(sys):
+def generate_tLbbp_elph(sys):
     (Vbbp, E, si) = (sys.baths.Vbbp, sys.qd.Ea, sys.si)
     mtype = sys.baths.mtype
     func_pauli = Func_pauli_elph(sys.baths.tlst, sys.baths.dlst,
@@ -34,9 +40,10 @@ def elph_generate_tLbbp(sys):
             for l in range(si.nbaths):
                 func_pauli.eval(Ebbp, l)
                 tLbbp[l, b, bp] = np.sqrt(func_pauli.val)*Vbbp[l, b, bp]
-    return tLbbp
+    sys.tLbbp = tLbbp
+    return 0
 
-def elph_generate_kern_lindblad(sys):
+def generate_kern_lindblad_elph(sys):
     (kern, E, tLbbp) = (sys.kern, sys.qd.Ea, sys.tLbbp)
     (si, symq, norm_rowp) = (sys.si, sys.funcp.symq, sys.funcp.norm_row)
     norm_row = norm_rowp if symq else si.ndm0r
@@ -108,5 +115,17 @@ def elph_generate_kern_lindblad(sys):
         for b in si.statesdm[charge]:
             bb = si.get_ind_dm0(b, b, charge)
             kern[norm_row, bb] += 1
-    return kern
+    sys.kern = kern
+    return 0
+
+class Approach_pyLindblad(Approach_elph):
+
+    kerntype = 'pyLindblad'
+    generate_fct = staticmethod(generate_tLba)
+    generate_kern = staticmethod(generate_kern_lindblad)
+    generate_current = staticmethod(generate_current_lindblad)
+    generate_vec = staticmethod(generate_vec_lindblad)
+    #
+    generate_kern_elph = staticmethod(generate_kern_lindblad_elph)
+    generate_fct_elph = staticmethod(generate_tLbbp_elph)
 #---------------------------------------------------------------------------------------------------------

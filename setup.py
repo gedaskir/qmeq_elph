@@ -30,7 +30,8 @@ cext = cythonize(ext)
 
 setup(name='qmeq_elph',
       version='1.0',
-      description='Package for solving master equations',
+      description='Package for transport calculations in quantum dots \
+                   using approximate quantum master equations',
       #url='http://github.com/gedaskir/qmeq',
       author='Gediminas Kirsanskas',
       author_email='gediminas.kirsanskas@teorfys.lu.se',
