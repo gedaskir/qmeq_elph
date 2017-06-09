@@ -1,0 +1,41 @@
+### Files
+
+# Library files .o
+*.o
+
+# Library files .so
+*.so
+
+# Python byte files *.pyc
+*.pyc
+
+# Cython compiled libraries on Windows *.pyd
+*.pyd
+
+# Text files *.txt
+*.txt
+
+# HTML Files *.html
+*.html
+
+# Specific files
+qmeq_elph/specfuncc.c
+qmeq_elph/approach/c_pauli.c
+qmeq_elph/approach/c_lindblad.c
+qmeq_elph/approach/c_redfield.c
+qmeq_elph/approach/c_neumann1.c
+qmeq_elph/approach/c_neumann2.c
+
+### Directories
+
+# Build directories
+.cache/
+build/
+dist/
+qmeq_elph.egg-info/
+qmeq_elph/build
+qmeq_elph/tests/__pycache__
+
+# Specific directories
+test/
+project/
