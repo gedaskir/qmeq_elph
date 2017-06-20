@@ -12,7 +12,7 @@ from qmeq.leadstun import construct_full_pmtr
 from qmeq.leadstun import make_array
 from qmeq.leadstun import make_array_dlst
 
-def elph_construct_Vbbp(velph, si, mtype=complex, Vbbp_=None):
+def elph_construct_Vbbp(baths, velph, Vbbp_=None):
     """
     Constructs many-body electron-phonon coupling matrix Vbbp
     from single particle electron-phonon matrix elements Vij.
@@ -36,6 +36,7 @@ def elph_construct_Vbbp(velph, si, mtype=complex, Vbbp_=None):
         nbaths by nmany by nmany numpy array containing many-body electron-phonon coupling matrix.
         The returned Vbbp corresponds to Fock basis.
     """
+    si, mtype = baths.si, baths.mtype
     if Vbbp_ is None:
         Vbbp = np.zeros((si.nbaths, si.nmany, si.nmany), dtype=mtype)
     else:
@@ -121,7 +122,7 @@ def elph_rotate_Vbbp(Vbbp0, vecslst, si, indexing='n', mtype=complex):
     return Vbbp
 #---------------------------------------------------------------------------------------------------
 
-def make_velph_dict(velph):
+def make_velph_dict(velph, si):
     """
     Makes single-particle electron-phonon coupling dictionary.
 
@@ -136,21 +137,32 @@ def make_velph_dict(velph):
         Dictionary containing electron-phonon couplings.
         velph[(bath, state1, state2)] gives the coupling.
     """
-    if isinstance(velph, list):
+    if isinstance(velph, dict):
+        velph_dict = velph
+    elif isinstance(velph, list):
         velph_dict = {}
         for j0 in velph:
             j1, j2, j3, vamp = j0
             velph_dict.update({(j1, j2, j3):vamp})
-        return velph_dict
     elif isinstance(velph, np.ndarray):
         nbaths, nsingle1, nsingle2 = velph.shape
         velph_dict = {}
-        for j1, j2, j3 in itertools.product(range(nbaths), range(nsingle1), nsingle2):
+        for j1, j2, j3 in itertools.product(range(nbaths), range(nsingle1), range(nsingle2)):
             if velph[j1, j2, j3] != 0:
                 velph_dict.update({(j1, j2, j3):velph[j1, j2, j3]})
+    #
+    if si.symmetry is 'spin':
+        velph_dict_spin = dict(velph_dict)
+        for j0 in velph_dict:
+            j1, j2, j3 = j0
+            vamp = velph_dict[j0]
+            velph_dict_spin.update({(j1,
+                                     j2+si.nsingle_sym,
+                                     j3+si.nsingle_sym):vamp})
+        return velph_dict_spin
+    else:
         return velph_dict
-    elif isinstance(velph, dict):
-        return velph
+
 #---------------------------------------------------------------------------------------------------
 
 class PhononBaths(object):
@@ -181,13 +193,15 @@ class PhononBaths(object):
 
     def __init__(self, nbaths, velph, si, tlst, dlst, mtype=complex):
         """Initialization of the LeadsTunneling class."""
-        self.velph = make_velph_dict(velph)
+        si.nbaths = nbaths
+        #
         self.si = si
+        self.velph = make_velph_dict(velph, si)
         self.si.nbaths = nbaths
         self.tlst = make_array(None, tlst, si, nbaths)
         self.dlst = make_array_dlst(None, dlst, si, nbaths)
         self.mtype = mtype
-        self.Vbbp0 = elph_construct_Vbbp(self.velph, si, mtype)
+        self.Vbbp0 = elph_construct_Vbbp(self, self.velph)
         self.Vbbp = self.Vbbp0
         self.bath_func = None
 
@@ -212,15 +226,15 @@ class PhononBaths(object):
                 self.tlst += make_array(None, tlst, self.si, self.si.nbaths)
             if dlst is not None:
                 self.dlst += make_array_dlst(None, dlst, self.si, self.si.nbaths)
-        if not velph is None:
-            velphp = velph if isinstance(velph, dict) else make_tleads_dict(velph)
-            self.Vbbp0 = elph_construct_Vbbp(velphp, self.si, self.mtype, self.Vbbp0)
+        if velph is not None:
             if updateq:
+                velph = make_velph_dict(velph, self.si)
                 for j0 in velph:
-                    try:    self.velph[j0] += velphp[j0]       # if velph[j0] != 0:
-                    except: self.velph.update({j0:velphp[j0]}) # if velph[j0] != 0:
+                    try:    self.velph[j0] += velph[j0]       # if velph[j0] != 0:
+                    except: self.velph.update({j0:velph[j0]}) # if velph[j0] != 0:
+            self.Vbbp0 = elph_construct_Vbbp(self, velph, self.Vbbp0)
 
-    def change(self, velph=None, tlst=None, dlst=None, updateq=True):
+    def change(self, velph=None, tlst=None, dlst=None):
         """
         Changes the values of the single particle electron-phonon couplings
         and correspondingly redefines many-body coupling matrix Vbbp.
@@ -230,30 +244,27 @@ class PhononBaths(object):
         velph : dict
             Dictionary describing which electron-phonon couplings to change.
             For example, velph[(bath, state1, state2)] = the new value.
-        updateq : bool
-            Specifies if the values of the single particle couplings will be updated.
-            The many-body tunneling amplitudes Vbbp will be updates in either case.
         """
         if tlst is not None:
             self.tlst = make_array(self.tlst, tlst, self.si, self.si.nbaths)
         if dlst is not None:
             self.dlst = make_array_dlst(self.dlst, dlst, self.si, self.si.nbaths)
         #
-        if not velph is None:
-            velphp = velph if isinstance(velph, dict) else make_tleads_dict(velph)
+        if velph is not None:
+            velph = make_velph_dict(velph, self.si)
             # Find the differences from the previous electron-phonon coupling
             velph_add = {}
-            for j0 in velphp:
+            for j0 in velph:
                 try:
-                    velph_diff = velphp[j0]-self.velph[j0]
+                    velph_diff = velph[j0]-self.velph[j0]
                     if velph_diff != 0:
                         velph_add.update({j0:velph_diff})
-                        if updateq: self.velph[j0] += velph_diff
+                        self.velph[j0] += velph_diff
                 except:
-                    velph_diff = velphp[j0]
+                    velph_diff = velph[j0]
                     if velph_diff != 0:
                         velph_add.update({j0:velph_diff})
-                        if updateq: self.velph.update({j0:velph_diff})
+                        self.velph.update({j0:velph_diff})
             # Add the differences
             self.add(velph_add, updateq=False, lstq=False)
 
@@ -286,7 +297,8 @@ class PhononBaths(object):
         velph : array
             The new single-particle electron-phonon couplings. See attribute velph.
         """
-        self.si.nbaths = nbaths
-        self.velph = make_velph_dict(velph)
+        si = self.si
+        si.nbaths = nbaths
+        self.velph = make_velph_dict(velph, si)
         self.mtype = mtype
-        self.Vbbp0 = elph_construct_Vbbp(velph, self.si, mtype)
+        self.Vbbp0 = elph_construct_Vbbp(self, velph)

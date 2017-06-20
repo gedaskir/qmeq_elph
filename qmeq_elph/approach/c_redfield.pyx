@@ -37,7 +37,7 @@ def c_generate_kern_redfield_elph(sys):
     cdef np.ndarray[double_t, ndim=1] E = sys.qd.Ea
     cdef np.ndarray[complex_t, ndim=3] Vbbp = sys.baths.Vbbp
     cdef np.ndarray[complex_t, ndim=4] w1fct = sys.w1fct
-    si = sys.si
+    si, si_elph = sys.si, sys.si_elph
     cdef bint symq = sys.funcp.symq
     cdef long_t norm_rowp = sys.funcp.norm_row
     #
@@ -61,6 +61,9 @@ def c_generate_kern_redfield_elph(sys):
     cdef np.ndarray[bool_t, ndim=1] booldm0 = si.booldm0
     cdef np.ndarray[bool_t, ndim=1] conjdm0 = si.conjdm0
     #
+    cdef np.ndarray[long_t, ndim=1] mapdm0_ = si_elph.mapdm0
+    cdef np.ndarray[bool_t, ndim=1] conjdm0_ = si_elph.conjdm0
+    #
     norm_row = norm_rowp if symq else si.ndm0r
     last_row = si.ndm0r-1 if symq else si.ndm0r
     ndm0, npauli, nbaths = si.ndm0, si.npauli, si.nbaths
@@ -82,10 +85,10 @@ def c_generate_kern_redfield_elph(sys):
                 for a, ap in itertools.product(si.statesdm[charge], si.statesdm[charge]):
                     aap = mapdm0[lenlst[charge]*dictdm[a] + dictdm[ap] + shiftlst0[charge]]
                     if aap != -1:
-                        bpap = mapdm0[lenlst[charge]*dictdm[bp] + dictdm[ap] + shiftlst0[charge]]
-                        ba = mapdm0[lenlst[charge]*dictdm[b] + dictdm[a] + shiftlst0[charge]]
-                        bpap_conj = conjdm0[lenlst[charge]*dictdm[bp] + dictdm[ap] + shiftlst0[charge]]
-                        ba_conj = conjdm0[lenlst[charge]*dictdm[b] + dictdm[a] + shiftlst0[charge]]
+                        bpap = mapdm0_[lenlst[charge]*dictdm[bp] + dictdm[ap] + shiftlst0[charge]]
+                        ba = mapdm0_[lenlst[charge]*dictdm[b] + dictdm[a] + shiftlst0[charge]]
+                        bpap_conj = conjdm0_[lenlst[charge]*dictdm[bp] + dictdm[ap] + shiftlst0[charge]]
+                        ba_conj = conjdm0_[lenlst[charge]*dictdm[b] + dictdm[a] + shiftlst0[charge]]
                         fct_aap = 0
                         for l in range(nbaths):
                             fct_aap += (+Vbbp[l, b, a]*Vbbp[l, ap, bp]*w1fct[l, bpap, 0, bpap_conj].conjugate()
@@ -105,13 +108,13 @@ def c_generate_kern_redfield_elph(sys):
                     if bppbp != -1:
                         fct_bppbp = 0
                         for a in si.statesdm[charge]:
-                            bppa = mapdm0[lenlst[charge]*dictdm[bpp] + dictdm[a] + shiftlst0[charge]]
-                            bppa_conj = conjdm0[lenlst[charge]*dictdm[bpp] + dictdm[a] + shiftlst0[charge]]
+                            bppa = mapdm0_[lenlst[charge]*dictdm[bpp] + dictdm[a] + shiftlst0[charge]]
+                            bppa_conj = conjdm0_[lenlst[charge]*dictdm[bpp] + dictdm[a] + shiftlst0[charge]]
                             for l in range(nbaths):
                                 fct_bppbp += +Vbbp[l, b, a]*Vbbp[l, a, bpp]*w1fct[l, bppa, 1, bppa_conj].conjugate()
                         for c in si.statesdm[charge]:
-                            cbpp = mapdm0[lenlst[charge]*dictdm[c] + dictdm[bpp] + shiftlst0[charge]]
-                            cbpp_conj = conjdm0[lenlst[charge]*dictdm[c] + dictdm[bpp] + shiftlst0[charge]]
+                            cbpp = mapdm0_[lenlst[charge]*dictdm[c] + dictdm[bpp] + shiftlst0[charge]]
+                            cbpp_conj = conjdm0_[lenlst[charge]*dictdm[c] + dictdm[bpp] + shiftlst0[charge]]
                             for l in range(nbaths):
                                 fct_bppbp += +Vbbp[l, b, c]*Vbbp[l, c, bpp]*w1fct[l, cbpp, 0, cbpp_conj]
                         bppbpi = ndm0 + bppbp - npauli
@@ -128,13 +131,13 @@ def c_generate_kern_redfield_elph(sys):
                     if bbpp != -1:
                         fct_bbpp = 0
                         for a in si.statesdm[charge]:
-                            bppa = mapdm0[lenlst[charge]*dictdm[bpp] + dictdm[a] + shiftlst0[charge]]
-                            bppa_conj = conjdm0[lenlst[charge]*dictdm[bpp] + dictdm[a] + shiftlst0[charge]]
+                            bppa = mapdm0_[lenlst[charge]*dictdm[bpp] + dictdm[a] + shiftlst0[charge]]
+                            bppa_conj = conjdm0_[lenlst[charge]*dictdm[bpp] + dictdm[a] + shiftlst0[charge]]
                             for l in range(nbaths):
                                 fct_bbpp += -Vbbp[l, bpp, a]*Vbbp[l, a, bp]*w1fct[l, bppa, 1, bppa_conj]
                         for c in si.statesdm[charge]:
-                            cbpp = mapdm0[lenlst[charge]*dictdm[c] + dictdm[bpp] + shiftlst0[charge]]
-                            cbpp_conj = conjdm0[lenlst[charge]*dictdm[c] + dictdm[bpp] + shiftlst0[charge]]
+                            cbpp = mapdm0_[lenlst[charge]*dictdm[c] + dictdm[bpp] + shiftlst0[charge]]
+                            cbpp_conj = conjdm0_[lenlst[charge]*dictdm[c] + dictdm[bpp] + shiftlst0[charge]]
                             for l in range(nbaths):
                                 fct_bbpp += -Vbbp[l, bpp, c]*Vbbp[l, c, bp]*w1fct[l, cbpp, 0, cbpp_conj].conjugate()
                         bbppi = ndm0 + bbpp - npauli
@@ -150,10 +153,10 @@ def c_generate_kern_redfield_elph(sys):
                 for c, cp in itertools.product(si.statesdm[charge], si.statesdm[charge]):
                     ccp = mapdm0[lenlst[charge]*dictdm[c] + dictdm[cp] + shiftlst0[charge]]
                     if ccp != -1:
-                        cpbp = mapdm0[lenlst[charge]*dictdm[cp] + dictdm[bp] + shiftlst0[charge]]
-                        cb = mapdm0[lenlst[charge]*dictdm[c] + dictdm[b] + shiftlst0[charge]]
-                        cpbp_conj = conjdm0[lenlst[charge]*dictdm[cp] + dictdm[bp] + shiftlst0[charge]]
-                        cb_conj = conjdm0[lenlst[charge]*dictdm[c] + dictdm[b] + shiftlst0[charge]]
+                        cpbp = mapdm0_[lenlst[charge]*dictdm[cp] + dictdm[bp] + shiftlst0[charge]]
+                        cb = mapdm0_[lenlst[charge]*dictdm[c] + dictdm[b] + shiftlst0[charge]]
+                        cpbp_conj = conjdm0_[lenlst[charge]*dictdm[cp] + dictdm[bp] + shiftlst0[charge]]
+                        cb_conj = conjdm0_[lenlst[charge]*dictdm[c] + dictdm[b] + shiftlst0[charge]]
                         fct_ccp = 0
                         for l in range(nbaths):
                             fct_ccp += (+Vbbp[l, b, c]*Vbbp[l, cp, bp]*w1fct[l, cpbp, 1, cpbp_conj]

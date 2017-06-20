@@ -48,7 +48,8 @@ class Builder_elph(Builder):
                        mfreeq=False, phi0_init=None,
                        mtype_qd=complex, mtype_leads=complex,
                        symmetry='n', herm_hs=True, herm_c=False, m_less_n=True,
-                       bath_func=None, eps_elph=1.0e-6):
+                       bath_func=None, eps_elph=1.0e-6,
+                       **kwargs):
         '''
         `nbaths', `velph', `tlst_ph', `dband_ph''
         are new parameters for Electron-Phonon coupling
@@ -120,3 +121,16 @@ class Builder_elph(Builder):
         self.baths.bath_func = bath_func
 
         self.appr = self.Approach(self)
+        self.create_si_elph()
+
+    def create_si_elph(self):
+        self.si_elph = copy.deepcopy(self.si)
+        self.appr.si_elph = self.si_elph
+
+    def change_si(self):
+        Builder.change_si(self)
+        self.create_si_elph()
+
+    def remove_states(self, dE):
+        Builder.remove_states(self, dE)
+        self.create_si_elph()

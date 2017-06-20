@@ -33,8 +33,9 @@ ctypedef np.complex128_t complex_t
 def c_generate_paulifct_elph(sys):
     cdef np.ndarray[double_t, ndim=1] E = sys.qd.Ea
     cdef np.ndarray[complex_t, ndim=3] Vbbp = sys.baths.Vbbp
-    si = sys.si
+    si = sys.si_elph
     #
+    cdef bool_t bbp_bool
     cdef long_t b, bp, bbp
     cdef int_t charge, l
     cdef double_t xbbp, Ebbp
@@ -45,6 +46,7 @@ def c_generate_paulifct_elph(sys):
     cdef np.ndarray[long_t, ndim=1] dictdm = si.dictdm
     cdef np.ndarray[long_t, ndim=1] shiftlst0 = si.shiftlst0
     cdef np.ndarray[long_t, ndim=1] mapdm0 = si.mapdm0
+    cdef np.ndarray[bool_t, ndim=1] booldm0 = si.booldm0
     #
     func_pauli = Func_pauli_elph(sys.baths.tlst, sys.baths.dlst,
                                  sys.baths.bath_func, sys.funcp.eps_elph)
@@ -52,14 +54,16 @@ def c_generate_paulifct_elph(sys):
     for charge in range(si.ncharge):
         # The diagonal elements are excluded, because they do not contribute
         for b, bp in itertools.combinations(si.statesdm[charge], 2):
-            bbp = mapdm0[lenlst[charge]*dictdm[b] + dictdm[bp] + shiftlst0[charge]]
-            Ebbp = E[b]-E[bp]
-            for l in range(nbaths):
-                xbbp = (Vbbp[l, b, bp]*Vbbp[l, bp, b]).real
-                func_pauli.eval(Ebbp, l)
-                paulifct[l, bbp, 1] = xbbp*func_pauli.val
-                func_pauli.eval(-Ebbp, l)
-                paulifct[l, bbp, 0] = xbbp*func_pauli.val
+            bbp_bool = booldm0[lenlst[charge]*dictdm[b] + dictdm[bp] + shiftlst0[charge]]
+            if bbp_bool:
+                bbp = mapdm0[lenlst[charge]*dictdm[b] + dictdm[bp] + shiftlst0[charge]]
+                Ebbp = E[b]-E[bp]
+                for l in range(nbaths):
+                    xbbp = (Vbbp[l, b, bp]*Vbbp[l, bp, b]).real
+                    func_pauli.eval(Ebbp, l)
+                    paulifct[l, bbp, 1] = xbbp*func_pauli.val
+                    func_pauli.eval(-Ebbp, l)
+                    paulifct[l, bbp, 0] = xbbp*func_pauli.val
     sys.paulifct_elph = paulifct
     return 0
 
@@ -69,7 +73,7 @@ def c_generate_paulifct_elph(sys):
 @cython.boundscheck(False)
 def c_generate_kern_pauli_elph(sys):
     cdef np.ndarray[double_t, ndim=3] paulifct = sys.paulifct_elph
-    si = sys.si
+    si, si_elph = sys.si, sys.si_elph
     cdef bint symq = sys.funcp.symq
     cdef long_t norm_rowp = sys.funcp.norm_row
     #
@@ -85,6 +89,9 @@ def c_generate_kern_pauli_elph(sys):
     cdef np.ndarray[long_t, ndim=1] mapdm0 = si.mapdm0
     cdef np.ndarray[bool_t, ndim=1] booldm0 = si.booldm0
     cdef np.ndarray[bool_t, ndim=1] conjdm0 = si.conjdm0
+    #
+    cdef np.ndarray[long_t, ndim=1] mapdm0_ = si_elph.mapdm0
+    cdef np.ndarray[bool_t, ndim=1] conjdm0_ = si_elph.conjdm0
     #
     norm_row = norm_rowp if symq else si.npauli
     last_row = si.npauli-1 if symq else si.npauli
@@ -103,11 +110,12 @@ def c_generate_kern_pauli_elph(sys):
             if not (symq and bb == norm_row) and bb_bool:
                 for a in si.statesdm[charge]:
                     aa = mapdm0[lenlst[charge]*dictdm[a] + dictdm[a] + shiftlst0[charge]]
-                    ba = mapdm0[lenlst[charge]*dictdm[b] + dictdm[a] + shiftlst0[charge]]
-                    ba_conj = conjdm0[lenlst[charge]*dictdm[b] + dictdm[a] + shiftlst0[charge]]
-                    for l in range(nbaths):
-                        kern[bb, bb] = kern[bb, bb] - paulifct[l, ba, not ba_conj]
-                        kern[bb, aa] = kern[bb, aa] + paulifct[l, ba, ba_conj]
+                    ba = mapdm0_[lenlst[charge]*dictdm[b] + dictdm[a] + shiftlst0[charge]]
+                    if aa != -1 and ba != -1:
+                        ba_conj = conjdm0_[lenlst[charge]*dictdm[b] + dictdm[a] + shiftlst0[charge]]
+                        for l in range(nbaths):
+                            kern[bb, bb] = kern[bb, bb] - paulifct[l, ba, not ba_conj]
+                            kern[bb, aa] = kern[bb, aa] + paulifct[l, ba, ba_conj]
     sys.kern = kern
     return 0
 
