@@ -48,8 +48,7 @@ class Builder_elph(Builder):
                        mfreeq=False, phi0_init=None,
                        mtype_qd=complex, mtype_leads=complex,
                        symmetry='n', herm_hs=True, herm_c=False, m_less_n=True,
-                       bath_func=None, eps_elph=1.0e-6,
-                       **kwargs):
+                       bath_func=None, eps_elph=1.0e-6):
         '''
         `nbaths', `velph', `tlst_ph', `dband_ph''
         are new parameters for Electron-Phonon coupling
