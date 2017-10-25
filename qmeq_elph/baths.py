@@ -122,7 +122,7 @@ def elph_rotate_Vbbp(Vbbp0, vecslst, si, indexing='n', mtype=complex):
     return Vbbp
 #---------------------------------------------------------------------------------------------------
 
-def make_velph_dict(velph, si):
+def make_velph_dict(velph, si, add_zeros=False):
     """
     Makes single-particle electron-phonon coupling dictionary.
 
@@ -148,7 +148,7 @@ def make_velph_dict(velph, si):
         nbaths, nsingle1, nsingle2 = velph.shape
         velph_dict = {}
         for j1, j2, j3 in itertools.product(range(nbaths), range(nsingle1), range(nsingle2)):
-            if velph[j1, j2, j3] != 0:
+            if velph[j1, j2, j3] != 0 or add_zeros:
                 velph_dict.update({(j1, j2, j3):velph[j1, j2, j3]})
     #
     if si.symmetry is 'spin':
@@ -251,7 +251,7 @@ class PhononBaths(object):
             self.dlst = make_array_dlst(self.dlst, dlst, self.si, self.si.nbaths)
         #
         if velph is not None:
-            velph = make_velph_dict(velph, self.si)
+            velph = make_velph_dict(velph, self.si, True)
             # Find the differences from the previous electron-phonon coupling
             velph_add = {}
             for j0 in velph:
