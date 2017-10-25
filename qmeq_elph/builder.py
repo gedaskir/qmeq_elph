@@ -133,3 +133,19 @@ class Builder_elph(Builder):
     def remove_states(self, dE):
         Builder.remove_states(self, dE)
         self.create_si_elph()
+
+    # kerntype
+    def get_kerntype(self):
+        return self.appr.kerntype
+    def set_kerntype(self, value):
+        if isinstance(value, str):
+            if self.appr.kerntype != value:
+                self.Approach = globals()['Approach_'+value]
+                self.change_si()
+                self.appr = self.Approach(self)
+        else:
+            if issubclass(value, Approach):
+                self.Approach = value
+                self.change_si()
+                self.appr = self.Approach(self)
+    kerntype = property(get_kerntype, set_kerntype)
