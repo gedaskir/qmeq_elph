@@ -126,10 +126,6 @@ class Builder_elph(Builder):
         self.si_elph = copy.deepcopy(self.si)
         self.appr.si_elph = self.si_elph
 
-    def change_si(self):
-        Builder.change_si(self)
-        self.create_si_elph()
-
     def remove_states(self, dE):
         Builder.remove_states(self, dE)
         self.create_si_elph()
@@ -143,9 +139,11 @@ class Builder_elph(Builder):
                 self.Approach = globals()['Approach_'+value]
                 self.change_si()
                 self.appr = self.Approach(self)
+                self.create_si_elph()
         else:
             if issubclass(value, Approach):
                 self.Approach = value
                 self.change_si()
                 self.appr = self.Approach(self)
+                self.create_si_elph()
     kerntype = property(get_kerntype, set_kerntype)
