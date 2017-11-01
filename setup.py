@@ -29,7 +29,7 @@ ext = [# Pauli
 cext = cythonize(ext)
 
 setup(name='qmeq_elph',
-      version='1.0',
+      version='1.0.1',
       description='Package for transport calculations in quantum dots \
                    using approximate quantum master equations',
       #url='http://github.com/gedaskir/qmeq',

@@ -59,7 +59,7 @@ def c_generate_paulifct_elph(sys):
                 bbp = mapdm0[lenlst[charge]*dictdm[b] + dictdm[bp] + shiftlst0[charge]]
                 Ebbp = E[b]-E[bp]
                 for l in range(nbaths):
-                    xbbp = (Vbbp[l, b, bp]*Vbbp[l, bp, b]).real
+                    xbbp = (Vbbp[l, b, bp]*Vbbp[l, b, bp].conjugate()).real
                     func_pauli.eval(Ebbp, l)
                     paulifct[l, bbp, 1] = xbbp*func_pauli.val
                     func_pauli.eval(-Ebbp, l)

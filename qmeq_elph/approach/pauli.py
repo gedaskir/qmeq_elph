@@ -31,7 +31,7 @@ def generate_paulifct_elph(sys):
                 bbp = si.get_ind_dm0(b, bp, charge)
                 Ebbp = E[b]-E[bp]
                 for l in range(si.nbaths):
-                    xbbp = (Vbbp[l, b, bp]*Vbbp[l, bp, b]).real
+                    xbbp = (Vbbp[l, b, bp]*Vbbp[l, b, bp].conjugate()).real
                     func_pauli.eval(Ebbp, l)
                     paulifct[l, bbp, 1] = xbbp*func_pauli.val
                     func_pauli.eval(-Ebbp, l)

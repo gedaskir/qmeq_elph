@@ -143,8 +143,8 @@ def c_generate_kern_1vN_elph(sys):
                         bap_conj = conjdm0_[lenlst[charge]*dictdm[b] + dictdm[ap] + shiftlst0[charge]]
                         fct_aap = 0
                         for l in range(nbaths):
-                            fct_aap += (+Vbbp[l, b, a]*Vbbp[l, ap, bp]*w1fct[l, bpa, 0, bpa_conj].conjugate()
-                                        -Vbbp[l, b, a]*Vbbp[l, ap, bp]*w1fct[l, bap, 0, bap_conj])
+                            fct_aap += (+Vbbp[l, b, a]*Vbbp[l, bp, ap].conjugate()*w1fct[l, bpa, 0, bpa_conj].conjugate()
+                                        -Vbbp[l, a, b].conjugate()*Vbbp[l, ap, bp]*w1fct[l, bap, 0, bap_conj])
                         aapi = ndm0 + aap - npauli
                         aap_sgn = +1 if conjdm0[lenlst[charge]*dictdm[a] + dictdm[ap] + shiftlst0[charge]] else -1
                         kern[bbp, aap] = kern[bbp, aap] + fct_aap.imag                              # kern[bbp, aap]   += fct_aap.imag
@@ -163,12 +163,12 @@ def c_generate_kern_1vN_elph(sys):
                             bpa = mapdm0_[lenlst[charge]*dictdm[bp] + dictdm[a] + shiftlst0[charge]]
                             bpa_conj = conjdm0_[lenlst[charge]*dictdm[bp] + dictdm[a] + shiftlst0[charge]]
                             for l in range(nbaths):
-                                fct_bppbp += +Vbbp[l, b, a]*Vbbp[l, a, bpp]*w1fct[l, bpa, 1, bpa_conj].conjugate()
+                                fct_bppbp += +Vbbp[l, b, a]*Vbbp[l, bpp, a].conjugate()*w1fct[l, bpa, 1, bpa_conj].conjugate()
                         for c in si.statesdm[charge]:
                             cbp = mapdm0_[lenlst[charge]*dictdm[c] + dictdm[bp] + shiftlst0[charge]]
                             cbp_conj = conjdm0_[lenlst[charge]*dictdm[c] + dictdm[bp] + shiftlst0[charge]]
                             for l in range(nbaths):
-                                fct_bppbp += +Vbbp[l, b, c]*Vbbp[l, c, bpp]*w1fct[l, cbp, 0, cbp_conj]
+                                fct_bppbp += +Vbbp[l, b, c]*Vbbp[l, bpp, c].conjugate()*w1fct[l, cbp, 0, cbp_conj]
                         bppbpi = ndm0 + bppbp - npauli
                         bppbp_sgn = +1 if conjdm0[lenlst[charge]*dictdm[bpp] + dictdm[bp] + shiftlst0[charge]] else -1
                         kern[bbp, bppbp] = kern[bbp, bppbp] + fct_bppbp.imag                        # kern[bbp, bppbp] += fct_bppbp.imag
@@ -186,12 +186,12 @@ def c_generate_kern_1vN_elph(sys):
                             ba = mapdm0_[lenlst[charge]*dictdm[b] + dictdm[a] + shiftlst0[charge]]
                             ba_conj = conjdm0_[lenlst[charge]*dictdm[b] + dictdm[a] + shiftlst0[charge]]
                             for l in range(nbaths):
-                                fct_bbpp += -Vbbp[l, bpp, a]*Vbbp[l, a, bp]*w1fct[l, ba, 1, ba_conj]
+                                fct_bbpp += -Vbbp[l, bpp, a].conjugate()*Vbbp[l, a, bp]*w1fct[l, ba, 1, ba_conj]
                         for c in si.statesdm[charge]:
                             cb = mapdm0_[lenlst[charge]*dictdm[c] + dictdm[b] + shiftlst0[charge]]
                             cb_conj = conjdm0_[lenlst[charge]*dictdm[c] + dictdm[b] + shiftlst0[charge]]
                             for l in range(nbaths):
-                                fct_bbpp += -Vbbp[l, bpp, c]*Vbbp[l, c, bp]*w1fct[l, cb, 0, cb_conj].conjugate()
+                                fct_bbpp += -Vbbp[l, c, bpp].conjugate()*Vbbp[l, c, bp]*w1fct[l, cb, 0, cb_conj].conjugate()
                         bbppi = ndm0 + bbpp - npauli
                         bbpp_sgn = +1 if conjdm0[lenlst[charge]*dictdm[b] + dictdm[bpp] + shiftlst0[charge]] else -1
                         kern[bbp, bbpp] = kern[bbp, bbpp] + fct_bbpp.imag                           # kern[bbp, bbpp] += fct_bbpp.imag
@@ -211,8 +211,8 @@ def c_generate_kern_1vN_elph(sys):
                         cpb_conj = conjdm0_[lenlst[charge]*dictdm[cp] + dictdm[b] + shiftlst0[charge]]
                         fct_ccp = 0
                         for l in range(nbaths):
-                            fct_ccp += (+Vbbp[l, b, c]*Vbbp[l, cp, bp]*w1fct[l, cbp, 1, cbp_conj]
-                                        -Vbbp[l, b, c]*Vbbp[l, cp, bp]*w1fct[l, cpb, 1, cpb_conj].conjugate())
+                            fct_ccp += (+Vbbp[l, b, c]*Vbbp[l, cp, bp].conjugate()*w1fct[l, cbp, 1, cbp_conj]
+                                        -Vbbp[l, c, b].conjugate()*Vbbp[l, cp, bp]*w1fct[l, cpb, 1, cpb_conj].conjugate())
                         ccpi = ndm0 + ccp - npauli
                         ccp_sgn = +1 if conjdm0[lenlst[charge]*dictdm[c] + dictdm[cp] + shiftlst0[charge]] else -1
                         kern[bbp, ccp] = kern[bbp, ccp] + fct_ccp.imag                              # kern[bbp, ccp] += fct_ccp.imag

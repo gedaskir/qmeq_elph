@@ -81,8 +81,8 @@ def generate_kern_1vN_elph(sys):
                         bap_conj = si_elph.get_ind_dm0(b, ap, charge, maptype=3)
                         fct_aap = 0
                         for l in range(si.nbaths):
-                            fct_aap += (+Vbbp[l, b, a]*Vbbp[l, ap, bp]*w1fct[l, bpa, 0, bpa_conj].conjugate()
-                                        -Vbbp[l, b, a]*Vbbp[l, ap, bp]*w1fct[l, bap, 0, bap_conj])
+                            fct_aap += (+Vbbp[l, b, a]*Vbbp[l, bp, ap].conjugate()*w1fct[l, bpa, 0, bpa_conj].conjugate()
+                                        -Vbbp[l, a, b].conjugate()*Vbbp[l, ap, bp]*w1fct[l, bap, 0, bap_conj])
                         aapi = si.ndm0 + aap - si.npauli
                         aap_sgn = +1 if si.get_ind_dm0(a, ap, charge, maptype=3) else -1
                         kern[bbp, aap] += fct_aap.imag                          # kern[bbp, aap]   += fct_aap.imag
@@ -101,12 +101,12 @@ def generate_kern_1vN_elph(sys):
                             bpa = si_elph.get_ind_dm0(bp, a, charge)
                             bpa_conj = si_elph.get_ind_dm0(bp, a, charge, maptype=3)
                             for l in range(si.nbaths):
-                                fct_bppbp += +Vbbp[l, b, a]*Vbbp[l, a, bpp]*w1fct[l, bpa, 1, bpa_conj].conjugate()
+                                fct_bppbp += +Vbbp[l, b, a]*Vbbp[l, bpp, a].conjugate()*w1fct[l, bpa, 1, bpa_conj].conjugate()
                         for c in si.statesdm[charge]:
                             cbp = si_elph.get_ind_dm0(c, bp, charge)
                             cbp_conj = si_elph.get_ind_dm0(c, bp, charge, maptype=3)
                             for l in range(si.nbaths):
-                                fct_bppbp += +Vbbp[l, b, c]*Vbbp[l, c, bpp]*w1fct[l, cbp, 0, cbp_conj]
+                                fct_bppbp += +Vbbp[l, b, c]*Vbbp[l, bpp, c].conjugate()*w1fct[l, cbp, 0, cbp_conj]
                         bppbpi = si.ndm0 + bppbp - si.npauli
                         bppbp_sgn = +1 if si.get_ind_dm0(bpp, bp, charge, maptype=3) else -1
                         kern[bbp, bppbp] += fct_bppbp.imag                      # kern[bbp, bppbp] += fct_bppbp.imag
@@ -124,12 +124,12 @@ def generate_kern_1vN_elph(sys):
                             ba = si_elph.get_ind_dm0(b, a, charge)
                             ba_conj = si_elph.get_ind_dm0(b, a, charge, maptype=3)
                             for l in range(si.nbaths):
-                                fct_bbpp += -Vbbp[l, bpp, a]*Vbbp[l, a, bp]*w1fct[l, ba, 1, ba_conj]
+                                fct_bbpp += -Vbbp[l, bpp, a].conjugate()*Vbbp[l, a, bp]*w1fct[l, ba, 1, ba_conj]
                         for c in si.statesdm[charge]:
                             cb = si_elph.get_ind_dm0(c, b, charge)
                             cb_conj = si_elph.get_ind_dm0(c, b, charge, maptype=3)
                             for l in range(si.nbaths):
-                                fct_bbpp += -Vbbp[l, bpp, c]*Vbbp[l, c, bp]*w1fct[l, cb, 0, cb_conj].conjugate()
+                                fct_bbpp += -Vbbp[l, c, bpp].conjugate()*Vbbp[l, c, bp]*w1fct[l, cb, 0, cb_conj].conjugate()
                         bbppi = si.ndm0 + bbpp - si.npauli
                         bbpp_sgn = +1 if si.get_ind_dm0(b, bpp, charge, maptype=3) else -1
                         kern[bbp, bbpp] += fct_bbpp.imag                        # kern[bbp, bbpp] += fct_bbpp.imag
@@ -149,8 +149,8 @@ def generate_kern_1vN_elph(sys):
                         cpb_conj = si_elph.get_ind_dm0(cp, b, charge, maptype=3)
                         fct_ccp = 0
                         for l in range(si.nbaths):
-                            fct_ccp += (+Vbbp[l, b, c]*Vbbp[l, cp, bp]*w1fct[l, cbp, 1, cbp_conj]
-                                        -Vbbp[l, b, c]*Vbbp[l, cp, bp]*w1fct[l, cpb, 1, cpb_conj].conjugate())
+                            fct_ccp += (+Vbbp[l, b, c]*Vbbp[l, cp, bp].conjugate()*w1fct[l, cbp, 1, cbp_conj]
+                                        -Vbbp[l, c, b].conjugate()*Vbbp[l, cp, bp]*w1fct[l, cpb, 1, cpb_conj].conjugate())
                         ccpi = si.ndm0 + ccp - si.npauli
                         ccp_sgn = +1 if si.get_ind_dm0(c, cp, charge, maptype=3) else -1
                         kern[bbp, ccp] += fct_ccp.imag                          # kern[bbp, ccp] += fct_ccp.imag
