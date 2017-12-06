@@ -36,6 +36,38 @@ from .approach.c_neumann1 import Approach_1vN
 from qmeq.approach.c_neumann2 import Approach_2vN
 #-----------------------------------------------------------
 
+def check_parameters(indexing, symmetry, itype, kerntype):
+    if indexing is 'n':
+        if symmetry is 'spin' and kerntype not in {'py2vN', '2vN'}:
+            indexing = 'ssq'
+        else:
+            indexing = 'charge'
+
+    if not indexing in {'Lin', 'charge', 'sz', 'ssq'}:
+        print("WARNING: Allowed indexing values are: \'Lin\', \'charge\', \'sz\', \'ssq\'. "+
+              "Using default indexing=\'charge\'.")
+        indexing = 'charge'
+
+    if not itype in {0,1,2,3}:
+        print("WARNING: itype needs to be 0, 1, 2, or 3. Using default itype=0.")
+        itype = 0
+
+    if isinstance(kerntype, str):
+        if not kerntype in {'Pauli', 'Lindblad', 'Redfield', '1vN', '2vN',
+                            'pyPauli', 'pyLindblad', 'pyRedfield', 'py1vN', 'py2vN'}:
+            print("WARNING: Allowed kerntype values are: "+
+                  "\'Pauli\', \'Lindblad\', \'Redfield\', \'1vN\', \'2vN\', "+
+                  "\'pyPauli\', \'pyLindblad\', \'pyRedfield\', \'py1vN\', \'py2vN\'. "+
+                  "Using default kerntype=\'Pauli\'.")
+            kerntype = 'Pauli'
+
+    if not indexing in {'Lin', 'charge'} and kerntype in {'py2vN', '2vN'}:
+        print("WARNING: For 2vN approach indexing needs to be \'Lin\' or \'charge\'. "+
+              "Using indexing=\'charge\' as a default.")
+        indexing = 'charge'
+
+    return indexing, itype, kerntype
+
 # Inherit from qmeq.Builder
 class Builder_elph(Builder):
 
@@ -54,42 +86,18 @@ class Builder_elph(Builder):
         are new parameters for Electron-Phonon coupling
         '''
 
-        if indexing is 'n':
-            if symmetry is 'spin' and kerntype not in {'py2vN', '2vN'}:
-                indexing = 'ssq'
-            else:
-                indexing = 'charge'
+        indexing, itype, kerntype = check_parameters(indexing, symmetry,
+                                                     itype, kerntype)
 
-        if not indexing in {'Lin', 'charge', 'sz', 'ssq'}:
-            print("WARNING: Allowed indexing values are: \'Lin\', \'charge\', \'sz\', \'ssq\'. "+
-                  "Using default indexing=\'charge\'.")
-            indexing = 'charge'
-
-        if not itype in {0,1,2,3}:
-            print("WARNING: itype needs to be 0, 1, 2, or 3. Using default itype=0.")
-            itype = 0
         if not itype_ph in {0,2}:
             print("WARNING: itype needs to be 0, or 2. Using default itype=0.")
             itype_ph = 0
 
         if isinstance(kerntype, str):
-            if not kerntype in {'Pauli', 'Lindblad', 'Redfield', '1vN', '2vN',
-                                'pyPauli', 'pyLindblad', 'py1vN', 'py2vN'}:
-                print("WARNING: Allowed kerntype values are: "+
-                      "\'Pauli\', \'Lindblad\', \'Redfield\', \'1vN\', \'2vN\', "+
-                      "\'pyPauli\', \'pyLindblad\', \'py1vN\', \'py2vN\'. "+
-                      "Using default kerntype=\'Pauli\'.")
-                kerntype = 'Pauli'
             self.Approach = globals()['Approach_'+kerntype]
-        else:
-            if issubclass(kerntype, Approach):
-                self.Approach = kerntype
-                kerntype = self.Approach.kerntype
-
-        if not indexing in {'Lin', 'charge'} and kerntype in {'py2vN', '2vN'}:
-            print("WARNING: For 2vN approach indexing needs to be \'Lin\' or \'charge\'. "+
-                  "Using indexing=\'charge\' as a default.")
-            indexing = 'charge'
+        elif issubclass(kerntype, Approach):
+            self.Approach = kerntype
+            kerntype = self.Approach.kerntype
 
         # Make copies of initialized parameters.
         hsingle = copy.deepcopy(hsingle)
