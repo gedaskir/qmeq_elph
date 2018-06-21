@@ -53,14 +53,14 @@ def c_generate_tLbbp_elph(sys):
         func_pauli.eval(0., l)
         for charge in range(si.ncharge):
             for b in si.statesdm[charge]:
-                tLbbp[l, b, b] = sqrt(func_pauli.val)*Vbbp[l, b, b]
+                tLbbp[l, b, b] = sqrt(func_pauli.val)*(Vbbp[l, b, b]+Vbbp[l, b, b].conjugate())
     # Off-diagonal elements
     for charge in range(si.ncharge):
         for b, bp in itertools.permutations(si.statesdm[charge], 2):
             Ebbp = E[b]-E[bp]
             for l in range(nbaths):
                 func_pauli.eval(Ebbp, l)
-                tLbbp[l, b, bp] = sqrt(func_pauli.val)*Vbbp[l, b, bp]
+                tLbbp[l, b, bp] = sqrt(func_pauli.val)*(Vbbp[l, b, bp]+Vbbp[l, bp, b].conjugate())
     sys.tLbbp = tLbbp
     return 0
 
