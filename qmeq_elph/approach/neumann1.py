@@ -19,7 +19,7 @@ from qmeq.approach.neumann1 import generate_vec_1vN
 
 def generate_w1fct_elph(sys):
     (E, si) = (sys.qd.Ea, sys.si_elph)
-    w1fct = np.zeros((si.nbaths, si.ndm0, 2, 2), dtype=complexnp)
+    w1fct = np.zeros((si.nbaths, si.ndm0, 2), dtype=complexnp)
     func_1vN_elph = Func_1vN_elph(sys.baths.tlst, sys.baths.dlst,
                                   sys.funcp.itype_ph, sys.funcp.dqawc_limit,
                                   sys.baths.bath_func,
@@ -32,22 +32,20 @@ def generate_w1fct_elph(sys):
                 bb = si.get_ind_dm0(b, b, charge)
                 bb_bool = si.get_ind_dm0(b, b, charge, maptype=2)
                 if bb != -1 and bb_bool:
-                    w1fct[l, bb, 0, 1] = func_1vN_elph.val0 - 0.5j*func_1vN_elph.val0.imag
-                    w1fct[l, bb, 1, 1] = func_1vN_elph.val1 - 0.5j*func_1vN_elph.val1.imag
+                    w1fct[l, bb, 0] = func_1vN_elph.val0 - 0.5j*func_1vN_elph.val0.imag
+                    w1fct[l, bb, 1] = func_1vN_elph.val1 - 0.5j*func_1vN_elph.val1.imag
     # Off-diagonal elements
     for charge in range(si.ncharge):
-        for b, bp in itertools.combinations(si.statesdm[charge], 2):
+        for b, bp in itertools.permutations(si.statesdm[charge], 2):
             bbp = si.get_ind_dm0(b, bp, charge)
             bbp_bool = si.get_ind_dm0(b, bp, charge, maptype=2)
             if bbp != -1 and bbp_bool:
+                print(bbp, b, bp)
                 Ebbp = E[b]-E[bp]
                 for l in range(si.nbaths):
                     func_1vN_elph.eval(Ebbp, l)
-                    w1fct[l, bbp, 0, 1] = func_1vN_elph.val0
-                    w1fct[l, bbp, 1, 1] = func_1vN_elph.val1
-                    func_1vN_elph.eval(-Ebbp, l)
-                    w1fct[l, bbp, 0, 0] = func_1vN_elph.val0
-                    w1fct[l, bbp, 1, 0] = func_1vN_elph.val1
+                    w1fct[l, bbp, 0] = func_1vN_elph.val0
+                    w1fct[l, bbp, 1] = func_1vN_elph.val1
     sys.w1fct = w1fct
     return 0
 
@@ -77,12 +75,11 @@ def generate_kern_1vN_elph(sys):
                     if aap != -1:
                         bpa = si_elph.get_ind_dm0(bp, a, charge)
                         bap = si_elph.get_ind_dm0(b, ap, charge)
-                        bpa_conj = si_elph.get_ind_dm0(bp, a, charge, maptype=3)
-                        bap_conj = si_elph.get_ind_dm0(b, ap, charge, maptype=3)
                         fct_aap = 0
                         for l in range(si.nbaths):
-                            fct_aap += (+Vbbp[l, b, a]*Vbbp[l, bp, ap].conjugate()*w1fct[l, bpa, 0, bpa_conj].conjugate()
-                                        -Vbbp[l, a, b].conjugate()*Vbbp[l, ap, bp]*w1fct[l, bap, 0, bap_conj])
+                            gamma_ba_bpap = 0.5*(Vbbp[l, b, a]*Vbbp[l, bp, ap].conjugate()
+                                                +Vbbp[l, a, b].conjugate()*Vbbp[l, ap, bp])
+                            fct_aap += gamma_ba_bpap*(w1fct[l, bpa, 0].conjugate() - w1fct[l, bap, 0])
                         aapi = si.ndm0 + aap - si.npauli
                         aap_sgn = +1 if si.get_ind_dm0(a, ap, charge, maptype=3) else -1
                         kern[bbp, aap] += fct_aap.imag                          # kern[bbp, aap]   += fct_aap.imag
@@ -99,14 +96,16 @@ def generate_kern_1vN_elph(sys):
                         fct_bppbp = 0
                         for a in si.statesdm[charge]:
                             bpa = si_elph.get_ind_dm0(bp, a, charge)
-                            bpa_conj = si_elph.get_ind_dm0(bp, a, charge, maptype=3)
                             for l in range(si.nbaths):
-                                fct_bppbp += +Vbbp[l, b, a]*Vbbp[l, bpp, a].conjugate()*w1fct[l, bpa, 1, bpa_conj].conjugate()
+                                gamma_ba_bppa = 0.5*(Vbbp[l, b, a]*Vbbp[l, bpp, a].conjugate()
+                                                    +Vbbp[l, a, b].conjugate()*Vbbp[l, a, bpp])
+                                fct_bppbp += gamma_ba_bppa*w1fct[l, bpa, 1].conjugate()
                         for c in si.statesdm[charge]:
                             cbp = si_elph.get_ind_dm0(c, bp, charge)
-                            cbp_conj = si_elph.get_ind_dm0(c, bp, charge, maptype=3)
                             for l in range(si.nbaths):
-                                fct_bppbp += +Vbbp[l, b, c]*Vbbp[l, bpp, c].conjugate()*w1fct[l, cbp, 0, cbp_conj]
+                                gamma_bc_bppc = 0.5*(Vbbp[l, b, c]*Vbbp[l, bpp, c].conjugate()
+                                                    +Vbbp[l, c, b].conjugate()*Vbbp[l, c, bpp])
+                                fct_bppbp += gamma_bc_bppc*w1fct[l, cbp, 0]
                         bppbpi = si.ndm0 + bppbp - si.npauli
                         bppbp_sgn = +1 if si.get_ind_dm0(bpp, bp, charge, maptype=3) else -1
                         kern[bbp, bppbp] += fct_bppbp.imag                      # kern[bbp, bppbp] += fct_bppbp.imag
@@ -122,14 +121,16 @@ def generate_kern_1vN_elph(sys):
                         fct_bbpp = 0
                         for a in si.statesdm[charge]:
                             ba = si_elph.get_ind_dm0(b, a, charge)
-                            ba_conj = si_elph.get_ind_dm0(b, a, charge, maptype=3)
                             for l in range(si.nbaths):
-                                fct_bbpp += -Vbbp[l, bpp, a].conjugate()*Vbbp[l, a, bp]*w1fct[l, ba, 1, ba_conj]
+                                gamma_abpp_abp = 0.5*(Vbbp[l, a, bpp].conjugate()*Vbbp[l, a, bp]
+                                                     +Vbbp[l, bpp, a]*Vbbp[l, bp, a].conjugate())
+                                fct_bbpp += -gamma_abpp_abp*w1fct[l, ba, 1]
                         for c in si.statesdm[charge]:
                             cb = si_elph.get_ind_dm0(c, b, charge)
-                            cb_conj = si_elph.get_ind_dm0(c, b, charge, maptype=3)
                             for l in range(si.nbaths):
-                                fct_bbpp += -Vbbp[l, c, bpp].conjugate()*Vbbp[l, c, bp]*w1fct[l, cb, 0, cb_conj].conjugate()
+                                gamma_cbpp_cbp = 0.5*(Vbbp[l, c, bpp].conjugate()*Vbbp[l, c, bp]
+                                                     +Vbbp[l, bpp, c]*Vbbp[l, bp, c].conjugate())
+                                fct_bbpp += -gamma_cbpp_cbp*w1fct[l, cb, 0].conjugate()
                         bbppi = si.ndm0 + bbpp - si.npauli
                         bbpp_sgn = +1 if si.get_ind_dm0(b, bpp, charge, maptype=3) else -1
                         kern[bbp, bbpp] += fct_bbpp.imag                        # kern[bbp, bbpp] += fct_bbpp.imag
@@ -145,12 +146,11 @@ def generate_kern_1vN_elph(sys):
                     if ccp != -1:
                         cbp = si_elph.get_ind_dm0(c, bp, charge)
                         cpb = si_elph.get_ind_dm0(cp, b, charge)
-                        cbp_conj = si_elph.get_ind_dm0(c, bp, charge, maptype=3)
-                        cpb_conj = si_elph.get_ind_dm0(cp, b, charge, maptype=3)
                         fct_ccp = 0
                         for l in range(si.nbaths):
-                            fct_ccp += (+Vbbp[l, b, c]*Vbbp[l, cp, bp].conjugate()*w1fct[l, cbp, 1, cbp_conj]
-                                        -Vbbp[l, c, b].conjugate()*Vbbp[l, cp, bp]*w1fct[l, cpb, 1, cpb_conj].conjugate())
+                            gamma_bc_bpcp = 0.5*(Vbbp[l, b, c]*Vbbp[l, bp, cp].conjugate()
+                                                +Vbbp[l, c, b].conjugate()*Vbbp[l, cp, bp])
+                            fct_ccp += gamma_bc_bpcp*(w1fct[l, cbp, 1] - w1fct[l, cpb, 1].conjugate())
                         ccpi = si.ndm0 + ccp - si.npauli
                         ccp_sgn = +1 if si.get_ind_dm0(c, cp, charge, maptype=3) else -1
                         kern[bbp, ccp] += fct_ccp.imag                          # kern[bbp, ccp] += fct_ccp.imag

@@ -41,7 +41,7 @@ def c_generate_w1fct_elph(sys):
     #
     cdef int_t nbaths = si.nbaths
     #
-    cdef np.ndarray[complex_t, ndim=4] w1fct = np.zeros((nbaths, si.ndm0, 2, 2), dtype=complexnp)
+    cdef np.ndarray[complex_t, ndim=3] w1fct = np.zeros((nbaths, si.ndm0, 2), dtype=complexnp)
     #
     cdef np.ndarray[long_t, ndim=1] lenlst = si.lenlst
     cdef np.ndarray[long_t, ndim=1] dictdm = si.dictdm
@@ -61,23 +61,19 @@ def c_generate_w1fct_elph(sys):
                 bb = mapdm0[lenlst[charge]*dictdm[b] + dictdm[b] + shiftlst0[charge]]
                 bb_bool = booldm0[lenlst[charge]*dictdm[b] + dictdm[b] + shiftlst0[charge]]
                 if bb != -1 and bb_bool:
-                    w1fct[l, bb, 0, 1] = func_1vN_elph.val0 - 0.5j*func_1vN_elph.val0.imag
-                    w1fct[l, bb, 1, 1] = func_1vN_elph.val1 - 0.5j*func_1vN_elph.val1.imag
+                    w1fct[l, bb, 0] = func_1vN_elph.val0 - 0.5j*func_1vN_elph.val0.imag
+                    w1fct[l, bb, 1] = func_1vN_elph.val1 - 0.5j*func_1vN_elph.val1.imag
     # Off-diagonal elements
     for charge in range(si.ncharge):
-        for b, bp in itertools.combinations(si.statesdm[charge], 2):
+        for b, bp in itertools.permutations(si.statesdm[charge], 2):
             bbp = mapdm0[lenlst[charge]*dictdm[b] + dictdm[bp] + shiftlst0[charge]]
             bbp_bool = booldm0[lenlst[charge]*dictdm[b] + dictdm[bp] + shiftlst0[charge]]
             if bbp != -1 and bbp_bool:
                 Ebbp = E[b]-E[bp]
                 for l in range(nbaths):
                     func_1vN_elph.eval(Ebbp, l)
-                    val = func_1vN_elph.val0
-                    w1fct[l, bbp, 0, 1] = func_1vN_elph.val0
-                    w1fct[l, bbp, 1, 1] = func_1vN_elph.val1
-                    func_1vN_elph.eval(-Ebbp, l)
-                    w1fct[l, bbp, 0, 0] = func_1vN_elph.val0
-                    w1fct[l, bbp, 1, 0] = func_1vN_elph.val1
+                    w1fct[l, bbp, 0] = func_1vN_elph.val0
+                    w1fct[l, bbp, 1] = func_1vN_elph.val1
     sys.w1fct = w1fct
     return 0
 
@@ -88,14 +84,12 @@ def c_generate_w1fct_elph(sys):
 def c_generate_kern_1vN_elph(sys):
     cdef np.ndarray[double_t, ndim=1] E = sys.qd.Ea
     cdef np.ndarray[complex_t, ndim=3] Vbbp = sys.baths.Vbbp
-    cdef np.ndarray[complex_t, ndim=4] w1fct = sys.w1fct
+    cdef np.ndarray[complex_t, ndim=3] w1fct = sys.w1fct
     si, si_elph = sys.si, sys.si_elph
     cdef bint symq = sys.funcp.symq
     cdef long_t norm_rowp = sys.funcp.norm_row
     #
-    cdef bool_t bbp_bool, bbpi_bool, \
-                bpa_conj, bap_conj, cbp_conj, \
-                ba_conj, cb_conj, cpb_conj
+    cdef bool_t bbp_bool, bbpi_bool
     cdef int_t charge, l, nbaths, \
                aap_sgn, bppbp_sgn, bbpp_sgn, ccp_sgn
     cdef long_t b, bp, bbp, bbpi, bb, \
@@ -104,7 +98,9 @@ def c_generate_kern_1vN_elph(sys):
                 c, cp, ccp, ccpi, \
                 bpa, bap, cbp, ba, cb, cpb
     cdef long_t norm_row, last_row, ndm0, npauli,
-    cdef complex_t fct_aap, fct_bppbp, fct_bbpp, fct_ccp
+    cdef complex_t fct_aap, fct_bppbp, fct_bbpp, fct_ccp, \
+                   gamma_ba_bpap, gamma_ba_bppa, gamma_bc_bppc, \
+                   gamma_abpp_abp, gamma_cbpp_cbp, gamma_bc_bpcp
     #
     cdef np.ndarray[long_t, ndim=1] lenlst = si.lenlst
     cdef np.ndarray[long_t, ndim=1] dictdm = si.dictdm
@@ -114,7 +110,6 @@ def c_generate_kern_1vN_elph(sys):
     cdef np.ndarray[bool_t, ndim=1] conjdm0 = si.conjdm0
     #
     cdef np.ndarray[long_t, ndim=1] mapdm0_ = si_elph.mapdm0
-    cdef np.ndarray[bool_t, ndim=1] conjdm0_ = si_elph.conjdm0
     #
     norm_row = norm_rowp if symq else si.ndm0r
     last_row = si.ndm0r-1 if symq else si.ndm0r
@@ -139,12 +134,11 @@ def c_generate_kern_1vN_elph(sys):
                     if aap != -1:
                         bpa = mapdm0_[lenlst[charge]*dictdm[bp] + dictdm[a] + shiftlst0[charge]]
                         bap = mapdm0_[lenlst[charge]*dictdm[b] + dictdm[ap] + shiftlst0[charge]]
-                        bpa_conj = conjdm0_[lenlst[charge]*dictdm[bp] + dictdm[a] + shiftlst0[charge]]
-                        bap_conj = conjdm0_[lenlst[charge]*dictdm[b] + dictdm[ap] + shiftlst0[charge]]
                         fct_aap = 0
                         for l in range(nbaths):
-                            fct_aap += (+Vbbp[l, b, a]*Vbbp[l, bp, ap].conjugate()*w1fct[l, bpa, 0, bpa_conj].conjugate()
-                                        -Vbbp[l, a, b].conjugate()*Vbbp[l, ap, bp]*w1fct[l, bap, 0, bap_conj])
+                            gamma_ba_bpap = 0.5*(Vbbp[l, b, a]*Vbbp[l, bp, ap].conjugate()
+                                                +Vbbp[l, a, b].conjugate()*Vbbp[l, ap, bp])
+                            fct_aap += gamma_ba_bpap*(w1fct[l, bpa, 0].conjugate() - w1fct[l, bap, 0])
                         aapi = ndm0 + aap - npauli
                         aap_sgn = +1 if conjdm0[lenlst[charge]*dictdm[a] + dictdm[ap] + shiftlst0[charge]] else -1
                         kern[bbp, aap] = kern[bbp, aap] + fct_aap.imag                              # kern[bbp, aap]   += fct_aap.imag
@@ -161,14 +155,16 @@ def c_generate_kern_1vN_elph(sys):
                         fct_bppbp = 0
                         for a in si.statesdm[charge]:
                             bpa = mapdm0_[lenlst[charge]*dictdm[bp] + dictdm[a] + shiftlst0[charge]]
-                            bpa_conj = conjdm0_[lenlst[charge]*dictdm[bp] + dictdm[a] + shiftlst0[charge]]
                             for l in range(nbaths):
-                                fct_bppbp += +Vbbp[l, b, a]*Vbbp[l, bpp, a].conjugate()*w1fct[l, bpa, 1, bpa_conj].conjugate()
+                                gamma_ba_bppa = 0.5*(Vbbp[l, b, a]*Vbbp[l, bpp, a].conjugate()
+                                                    +Vbbp[l, a, b].conjugate()*Vbbp[l, a, bpp])
+                                fct_bppbp += gamma_ba_bppa*w1fct[l, bpa, 1].conjugate()
                         for c in si.statesdm[charge]:
                             cbp = mapdm0_[lenlst[charge]*dictdm[c] + dictdm[bp] + shiftlst0[charge]]
-                            cbp_conj = conjdm0_[lenlst[charge]*dictdm[c] + dictdm[bp] + shiftlst0[charge]]
                             for l in range(nbaths):
-                                fct_bppbp += +Vbbp[l, b, c]*Vbbp[l, bpp, c].conjugate()*w1fct[l, cbp, 0, cbp_conj]
+                                gamma_bc_bppc = 0.5*(Vbbp[l, b, c]*Vbbp[l, bpp, c].conjugate()
+                                                    +Vbbp[l, c, b].conjugate()*Vbbp[l, c, bpp])
+                                fct_bppbp += gamma_bc_bppc*w1fct[l, cbp, 0]
                         bppbpi = ndm0 + bppbp - npauli
                         bppbp_sgn = +1 if conjdm0[lenlst[charge]*dictdm[bpp] + dictdm[bp] + shiftlst0[charge]] else -1
                         kern[bbp, bppbp] = kern[bbp, bppbp] + fct_bppbp.imag                        # kern[bbp, bppbp] += fct_bppbp.imag
@@ -184,14 +180,16 @@ def c_generate_kern_1vN_elph(sys):
                         fct_bbpp = 0
                         for a in si.statesdm[charge]:
                             ba = mapdm0_[lenlst[charge]*dictdm[b] + dictdm[a] + shiftlst0[charge]]
-                            ba_conj = conjdm0_[lenlst[charge]*dictdm[b] + dictdm[a] + shiftlst0[charge]]
                             for l in range(nbaths):
-                                fct_bbpp += -Vbbp[l, bpp, a].conjugate()*Vbbp[l, a, bp]*w1fct[l, ba, 1, ba_conj]
+                                gamma_abpp_abp = 0.5*(Vbbp[l, a, bpp].conjugate()*Vbbp[l, a, bp]
+                                                     +Vbbp[l, bpp, a]*Vbbp[l, bp, a].conjugate())
+                                fct_bbpp += -gamma_abpp_abp*w1fct[l, ba, 1]
                         for c in si.statesdm[charge]:
                             cb = mapdm0_[lenlst[charge]*dictdm[c] + dictdm[b] + shiftlst0[charge]]
-                            cb_conj = conjdm0_[lenlst[charge]*dictdm[c] + dictdm[b] + shiftlst0[charge]]
                             for l in range(nbaths):
-                                fct_bbpp += -Vbbp[l, c, bpp].conjugate()*Vbbp[l, c, bp]*w1fct[l, cb, 0, cb_conj].conjugate()
+                                gamma_cbpp_cbp = 0.5*(Vbbp[l, c, bpp].conjugate()*Vbbp[l, c, bp]
+                                                     +Vbbp[l, bpp, c]*Vbbp[l, bp, c].conjugate())
+                                fct_bbpp += -gamma_cbpp_cbp*w1fct[l, cb, 0].conjugate()
                         bbppi = ndm0 + bbpp - npauli
                         bbpp_sgn = +1 if conjdm0[lenlst[charge]*dictdm[b] + dictdm[bpp] + shiftlst0[charge]] else -1
                         kern[bbp, bbpp] = kern[bbp, bbpp] + fct_bbpp.imag                           # kern[bbp, bbpp] += fct_bbpp.imag
@@ -207,12 +205,11 @@ def c_generate_kern_1vN_elph(sys):
                     if ccp != -1:
                         cbp = mapdm0_[lenlst[charge]*dictdm[c] + dictdm[bp] + shiftlst0[charge]]
                         cpb = mapdm0_[lenlst[charge]*dictdm[cp] + dictdm[b] + shiftlst0[charge]]
-                        cbp_conj = conjdm0_[lenlst[charge]*dictdm[c] + dictdm[bp] + shiftlst0[charge]]
-                        cpb_conj = conjdm0_[lenlst[charge]*dictdm[cp] + dictdm[b] + shiftlst0[charge]]
                         fct_ccp = 0
                         for l in range(nbaths):
-                            fct_ccp += (+Vbbp[l, b, c]*Vbbp[l, cp, bp].conjugate()*w1fct[l, cbp, 1, cbp_conj]
-                                        -Vbbp[l, c, b].conjugate()*Vbbp[l, cp, bp]*w1fct[l, cpb, 1, cpb_conj].conjugate())
+                            gamma_bc_bpcp = 0.5*(Vbbp[l, b, c]*Vbbp[l, bp, cp].conjugate()
+                                                +Vbbp[l, c, b].conjugate()*Vbbp[l, cp, bp])
+                            fct_ccp += gamma_bc_bpcp*(w1fct[l, cbp, 1] - w1fct[l, cpb, 1].conjugate())
                         ccpi = ndm0 + ccp - npauli
                         ccp_sgn = +1 if conjdm0[lenlst[charge]*dictdm[c] + dictdm[cp] + shiftlst0[charge]] else -1
                         kern[bbp, ccp] = kern[bbp, ccp] + fct_ccp.imag                              # kern[bbp, ccp] += fct_ccp.imag

@@ -22,20 +22,20 @@ def generate_paulifct_elph(sys):
     func_pauli = Func_pauli_elph(sys.baths.tlst, sys.baths.dlst,
                                  sys.baths.bath_func, sys.funcp.eps_elph)
     #
-    paulifct = np.zeros((si.nbaths, si.ndm0, 2), dtype=doublenp)
+    paulifct = np.zeros((si.nbaths, si.ndm0), dtype=doublenp)
     for charge in range(si.ncharge):
         # The diagonal elements b=bp are excluded, because they do not contribute
-        for b, bp in itertools.combinations(si.statesdm[charge], 2):
+        for b, bp in itertools.permutations(si.statesdm[charge], 2):
             bbp_bool = si.get_ind_dm0(b, bp, charge, maptype=2)
             if bbp_bool:
                 bbp = si.get_ind_dm0(b, bp, charge)
                 Ebbp = E[b]-E[bp]
                 for l in range(si.nbaths):
-                    xbbp = (Vbbp[l, b, bp]*Vbbp[l, b, bp].conjugate()).real
+                    xbbp = 0.5*(Vbbp[l, b, bp]*Vbbp[l, b, bp].conjugate()
+                               +Vbbp[l, bp, b].conjugate()*Vbbp[l, bp, b]).real
                     func_pauli.eval(Ebbp, l)
-                    paulifct[l, bbp, 1] = xbbp*func_pauli.val
-                    func_pauli.eval(-Ebbp, l)
-                    paulifct[l, bbp, 0] = xbbp*func_pauli.val
+                    paulifct[l, bbp] = xbbp*func_pauli.val
+
     sys.paulifct_elph = paulifct
     return 0
 
@@ -57,12 +57,13 @@ def generate_kern_pauli_elph(sys):
             if not (symq and bb == norm_row) and bb_bool:
                 for a in si.statesdm[charge]:
                     aa = si.get_ind_dm0(a, a, charge)
+                    ab = si_elph.get_ind_dm0(a, b, charge)
                     ba = si_elph.get_ind_dm0(b, a, charge)
                     if aa != -1 and ba != -1:
-                        ba_conj = si_elph.get_ind_dm0(b, a, charge, maptype=3)
                         for l in range(si.nbaths):
-                            kern[bb, bb] -= paulifct[l, ba, int(not ba_conj)]
-                            kern[bb, aa] += paulifct[l, ba, ba_conj]
+                            kern[bb, bb] -= paulifct[l, ab]
+                            kern[bb, aa] += paulifct[l, ba]
+
     sys.kern = kern
     return 0
 

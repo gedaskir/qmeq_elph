@@ -36,14 +36,12 @@ ctypedef np.complex128_t complex_t
 def c_generate_kern_redfield_elph(sys):
     cdef np.ndarray[double_t, ndim=1] E = sys.qd.Ea
     cdef np.ndarray[complex_t, ndim=3] Vbbp = sys.baths.Vbbp
-    cdef np.ndarray[complex_t, ndim=4] w1fct = sys.w1fct
+    cdef np.ndarray[complex_t, ndim=3] w1fct = sys.w1fct
     si, si_elph = sys.si, sys.si_elph
     cdef bint symq = sys.funcp.symq
     cdef long_t norm_rowp = sys.funcp.norm_row
     #
-    cdef bool_t bbp_bool, bbpi_bool, \
-                bpap_conj, ba_conj, bppa_conj, \
-                cbpp_conj, cpbp_conj, cb_conj
+    cdef bool_t bbp_bool, bbpi_bool
     cdef int_t charge, l, nbaths, \
                aap_sgn, bppbp_sgn, bbpp_sgn, ccp_sgn
     cdef long_t b, bp, bbp, bbpi, bb, \
@@ -52,7 +50,9 @@ def c_generate_kern_redfield_elph(sys):
                 c, cp, ccp, ccpi, \
                 bpap, ba, bppa, cbpp, cpbp, cb
     cdef long_t norm_row, last_row, ndm0, npauli,
-    cdef complex_t fct_aap, fct_bppbp, fct_bbpp, fct_ccp
+    cdef complex_t fct_aap, fct_bppbp, fct_bbpp, fct_ccp, \
+                   gamma_ba_bpap, gamma_ba_bppa, gamma_bc_bppc, \
+                   gamma_abpp_abp, gamma_cbpp_cbp, gamma_bc_bpcp
     #
     cdef np.ndarray[long_t, ndim=1] lenlst = si.lenlst
     cdef np.ndarray[long_t, ndim=1] dictdm = si.dictdm
@@ -62,7 +62,6 @@ def c_generate_kern_redfield_elph(sys):
     cdef np.ndarray[bool_t, ndim=1] conjdm0 = si.conjdm0
     #
     cdef np.ndarray[long_t, ndim=1] mapdm0_ = si_elph.mapdm0
-    cdef np.ndarray[bool_t, ndim=1] conjdm0_ = si_elph.conjdm0
     #
     norm_row = norm_rowp if symq else si.ndm0r
     last_row = si.ndm0r-1 if symq else si.ndm0r
@@ -87,12 +86,11 @@ def c_generate_kern_redfield_elph(sys):
                     if aap != -1:
                         bpap = mapdm0_[lenlst[charge]*dictdm[bp] + dictdm[ap] + shiftlst0[charge]]
                         ba = mapdm0_[lenlst[charge]*dictdm[b] + dictdm[a] + shiftlst0[charge]]
-                        bpap_conj = conjdm0_[lenlst[charge]*dictdm[bp] + dictdm[ap] + shiftlst0[charge]]
-                        ba_conj = conjdm0_[lenlst[charge]*dictdm[b] + dictdm[a] + shiftlst0[charge]]
                         fct_aap = 0
                         for l in range(nbaths):
-                            fct_aap += (+Vbbp[l, b, a]*Vbbp[l, bp, ap].conjugate()*w1fct[l, bpap, 0, bpap_conj].conjugate()
-                                        -Vbbp[l, a, b].conjugate()*Vbbp[l, ap, bp]*w1fct[l, ba, 0, ba_conj])
+                            gamma_ba_bpap = 0.5*(Vbbp[l, b, a]*Vbbp[l, bp, ap].conjugate()
+                                                +Vbbp[l, a, b].conjugate()*Vbbp[l, ap, bp])
+                            fct_aap += gamma_ba_bpap*(w1fct[l, bpap, 0].conjugate() - w1fct[l, ba, 0])
                         aapi = ndm0 + aap - npauli
                         aap_sgn = +1 if conjdm0[lenlst[charge]*dictdm[a] + dictdm[ap] + shiftlst0[charge]] else -1
                         kern[bbp, aap] = kern[bbp, aap] + fct_aap.imag                              # kern[bbp, aap]   += fct_aap.imag
@@ -109,14 +107,16 @@ def c_generate_kern_redfield_elph(sys):
                         fct_bppbp = 0
                         for a in si.statesdm[charge]:
                             bppa = mapdm0_[lenlst[charge]*dictdm[bpp] + dictdm[a] + shiftlst0[charge]]
-                            bppa_conj = conjdm0_[lenlst[charge]*dictdm[bpp] + dictdm[a] + shiftlst0[charge]]
                             for l in range(nbaths):
-                                fct_bppbp += +Vbbp[l, b, a]*Vbbp[l, bpp, a].conjugate()*w1fct[l, bppa, 1, bppa_conj].conjugate()
+                                gamma_ba_bppa = 0.5*(Vbbp[l, b, a]*Vbbp[l, bpp, a].conjugate()
+                                                    +Vbbp[l, a, b].conjugate()*Vbbp[l, a, bpp])
+                                fct_bppbp += +gamma_ba_bppa*w1fct[l, bppa, 1].conjugate()
                         for c in si.statesdm[charge]:
                             cbpp = mapdm0_[lenlst[charge]*dictdm[c] + dictdm[bpp] + shiftlst0[charge]]
-                            cbpp_conj = conjdm0_[lenlst[charge]*dictdm[c] + dictdm[bpp] + shiftlst0[charge]]
                             for l in range(nbaths):
-                                fct_bppbp += +Vbbp[l, b, c]*Vbbp[l, bpp, c].conjugate()*w1fct[l, cbpp, 0, cbpp_conj]
+                                gamma_bc_bppc = 0.5*(Vbbp[l, b, c]*Vbbp[l, bpp, c].conjugate()
+                                                    +Vbbp[l, c, b].conjugate()*Vbbp[l, c, bpp])
+                                fct_bppbp += +gamma_bc_bppc*w1fct[l, cbpp, 0]
                         bppbpi = ndm0 + bppbp - npauli
                         bppbp_sgn = +1 if conjdm0[lenlst[charge]*dictdm[bpp] + dictdm[bp] + shiftlst0[charge]] else -1
                         kern[bbp, bppbp] = kern[bbp, bppbp] + fct_bppbp.imag                        # kern[bbp, bppbp] += fct_bppbp.imag
@@ -132,14 +132,16 @@ def c_generate_kern_redfield_elph(sys):
                         fct_bbpp = 0
                         for a in si.statesdm[charge]:
                             bppa = mapdm0_[lenlst[charge]*dictdm[bpp] + dictdm[a] + shiftlst0[charge]]
-                            bppa_conj = conjdm0_[lenlst[charge]*dictdm[bpp] + dictdm[a] + shiftlst0[charge]]
                             for l in range(nbaths):
-                                fct_bbpp += -Vbbp[l, bpp, a].conjugate()*Vbbp[l, a, bp]*w1fct[l, bppa, 1, bppa_conj]
+                                gamma_abpp_abp = 0.5*(Vbbp[l, a, bpp].conjugate()*Vbbp[l, a, bp]
+                                                     +Vbbp[l, bpp, a]*Vbbp[l, bp, a].conjugate())
+                                fct_bbpp += -gamma_abpp_abp*w1fct[l, bppa, 1]
                         for c in si.statesdm[charge]:
                             cbpp = mapdm0_[lenlst[charge]*dictdm[c] + dictdm[bpp] + shiftlst0[charge]]
-                            cbpp_conj = conjdm0_[lenlst[charge]*dictdm[c] + dictdm[bpp] + shiftlst0[charge]]
                             for l in range(nbaths):
-                                fct_bbpp += -Vbbp[l, c, bpp].conjugate()*Vbbp[l, c, bp]*w1fct[l, cbpp, 0, cbpp_conj].conjugate()
+                                gamma_cbpp_cbp = 0.5*(Vbbp[l, c, bpp].conjugate()*Vbbp[l, c, bp]
+                                                     +Vbbp[l, bpp, c]*Vbbp[l, bp, c].conjugate())
+                                fct_bbpp += -gamma_cbpp_cbp*w1fct[l, cbpp, 0].conjugate()
                         bbppi = ndm0 + bbpp - npauli
                         bbpp_sgn = +1 if conjdm0[lenlst[charge]*dictdm[b] + dictdm[bpp] + shiftlst0[charge]] else -1
                         kern[bbp, bbpp] = kern[bbp, bbpp] + fct_bbpp.imag                           # kern[bbp, bbpp] += fct_bbpp.imag
@@ -155,12 +157,11 @@ def c_generate_kern_redfield_elph(sys):
                     if ccp != -1:
                         cpbp = mapdm0_[lenlst[charge]*dictdm[cp] + dictdm[bp] + shiftlst0[charge]]
                         cb = mapdm0_[lenlst[charge]*dictdm[c] + dictdm[b] + shiftlst0[charge]]
-                        cpbp_conj = conjdm0_[lenlst[charge]*dictdm[cp] + dictdm[bp] + shiftlst0[charge]]
-                        cb_conj = conjdm0_[lenlst[charge]*dictdm[c] + dictdm[b] + shiftlst0[charge]]
                         fct_ccp = 0
                         for l in range(nbaths):
-                            fct_ccp += (+Vbbp[l, b, c]*Vbbp[l, cp, bp].conjugate()*w1fct[l, cpbp, 1, cpbp_conj]
-                                        -Vbbp[l, c, b].conjugate()*Vbbp[l, cp, bp]*w1fct[l, cb, 1, cb_conj].conjugate())
+                            gamma_bc_bpcp = 0.5*(Vbbp[l, b, c]*Vbbp[l, bp, cp].conjugate()
+                                                +Vbbp[l, c, b].conjugate()*Vbbp[l, cp, bp])
+                            fct_ccp += gamma_bc_bpcp*(w1fct[l, cpbp, 1] - w1fct[l, cb, 1].conjugate())
                         ccpi = ndm0 + ccp - npauli
                         ccp_sgn = +1 if conjdm0[lenlst[charge]*dictdm[c] + dictdm[cp] + shiftlst0[charge]] else -1
                         kern[bbp, ccp] = kern[bbp, ccp] + fct_ccp.imag                              # kern[bbp, ccp] += fct_ccp.imag

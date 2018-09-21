@@ -14,6 +14,7 @@ from qmeq.mytypes import complexnp
 from qmeq import Builder
 from qmeq import Approach
 from qmeq import StateIndexingDM
+from qmeq import StateIndexingDMc
 from qmeq import QuantumDot
 from qmeq import LeadsTunneling
 from qmeq import FunctionProperties
@@ -131,12 +132,16 @@ class Builder_elph(Builder):
         self.create_si_elph()
 
     def create_si_elph(self):
-        self.si_elph = copy.deepcopy(self.si)
-        self.appr.si_elph = self.si_elph
+        si = self.si
+        si_elph = StateIndexingDMc(si.nsingle, si.indexing,
+                                   si.symmetry, si.nleads)
+        si_elph.nbaths = si.nbaths
+        self.si_elph = si_elph
+        self.appr.si_elph = si_elph
 
     def remove_states(self, dE):
         Builder.remove_states(self, dE)
-        self.create_si_elph()
+        self.si_elph.set_statesdm(si.statesdm)
 
     # kerntype
     def get_kerntype(self):

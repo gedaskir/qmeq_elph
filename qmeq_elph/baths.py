@@ -60,7 +60,6 @@ def elph_construct_Vbbp(baths, velph, Vbbp_=None):
                 statep[j3] = 1
                 ind = si.get_ind(statep)
                 Vbbp[j4, ind, j1] += vamp*fsign
-                Vbbp[j4, j1, ind] += vamp.conjugate()*fsign
     return Vbbp
 
 def elph_rotate_Vbbp(Vbbp0, vecslst, si, indexing='n', mtype=complex):

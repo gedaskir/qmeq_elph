@@ -26,20 +26,23 @@ def generate_tLbbp_elph(sys):
     func_pauli = Func_pauli_elph(sys.baths.tlst, sys.baths.dlst,
                                  sys.baths.bath_func, sys.funcp.eps_elph)
     #
-    tLbbp = np.zeros(Vbbp.shape, dtype=mtype)
+    tLbbp_shape = Vbbp.shape + (2,)
+    tLbbp = np.zeros(tLbbp_shape, dtype=mtype)
     # Diagonal elements
     for l in range(si.nbaths):
         func_pauli.eval(0., l)
         for charge in range(si.ncharge):
             for b in si.statesdm[charge]:
-                tLbbp[l, b, b] = np.sqrt(func_pauli.val)*(Vbbp[l, b, b]+Vbbp[l, b, b].conjugate())
+                tLbbp[l, b, b, 0] = np.sqrt(0.5*func_pauli.val)*Vbbp[l, b, b]
+                tLbbp[l, b, b, 1] = tLbbp[l, b, b, 0].conjugate()
     # Off-diagonal elements
     for charge in range(si.ncharge):
         for b, bp in itertools.permutations(si.statesdm[charge], 2):
             Ebbp = E[b]-E[bp]
             for l in range(si.nbaths):
                 func_pauli.eval(Ebbp, l)
-                tLbbp[l, b, bp] = np.sqrt(func_pauli.val)*(Vbbp[l, b, bp]+Vbbp[l, bp, b].conjugate())
+                tLbbp[l, b, bp, 0] = np.sqrt(0.5*func_pauli.val)*Vbbp[l, b, bp]
+                tLbbp[l, b, bp, 1] = np.sqrt(0.5*func_pauli.val)*Vbbp[l, bp, b].conjugate()
     sys.tLbbp = tLbbp
     return 0
 
@@ -64,8 +67,8 @@ def generate_kern_lindblad_elph(sys):
                     aap = si.get_ind_dm0(a, ap, charge)
                     if aap != -1:
                         fct_aap = 0
-                        for l in range(si.nbaths):
-                            fct_aap += tLbbp[l, b, a]*tLbbp[l, bp, ap].conjugate()
+                        for (l, q) in itertools.product(range(si.nbaths), range(2)):
+                            fct_aap += tLbbp[l, b, a, q]*tLbbp[l, bp, ap, q].conjugate()
                         aapi = si.ndm0 + aap - si.npauli
                         aap_sgn = +1 if si.get_ind_dm0(a, ap, charge, maptype=3) else -1
                         kern[bbp, aap] += fct_aap.real                          # kern[bbp, aap]   += fct_aap.real
@@ -81,8 +84,8 @@ def generate_kern_lindblad_elph(sys):
                     if bppbp != -1:
                         fct_bppbp = 0
                         for a in si.statesdm[charge]:
-                            for l in range(si.nbaths):
-                                fct_bppbp += -0.5*tLbbp[l, a, b].conjugate()*tLbbp[l, a, bpp]
+                            for (l, q) in itertools.product(range(si.nbaths), range(2)):
+                                fct_bppbp += -0.5*tLbbp[l, a, b, q].conjugate()*tLbbp[l, a, bpp, q]
                         bppbpi = si.ndm0 + bppbp - si.npauli
                         bppbp_sgn = +1 if si.get_ind_dm0(bpp, bp, charge, maptype=3) else -1
                         kern[bbp, bppbp] += fct_bppbp.real                      # kern[bbp, bppbp] += fct_bppbp.real
@@ -97,8 +100,8 @@ def generate_kern_lindblad_elph(sys):
                     if bbpp != -1:
                         fct_bbpp = 0
                         for a in si.statesdm[charge]:
-                            for l in range(si.nbaths):
-                                fct_bbpp += -0.5*tLbbp[l, a, bpp].conjugate()*tLbbp[l, a, bp]
+                            for (l, q) in itertools.product(range(si.nbaths), range(2)):
+                                fct_bbpp += -0.5*tLbbp[l, a, bpp, q].conjugate()*tLbbp[l, a, bp, q]
                         bbppi = si.ndm0 + bbpp - si.npauli
                         bbpp_sgn = +1 if si.get_ind_dm0(b, bpp, charge, maptype=3) else -1
                         kern[bbp, bbpp] += fct_bbpp.real                        # kern[bbp, bbpp] += fct_bbpp.real

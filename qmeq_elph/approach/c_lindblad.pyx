@@ -44,7 +44,7 @@ def c_generate_tLbbp_elph(sys):
     cdef double_t Ebbp
     cdef int_t nbaths = si.nbaths
     #
-    cdef np.ndarray[complex_t, ndim=3] tLbbp = np.zeros((nbaths, si.nmany, si.nmany), dtype=complexnp)
+    cdef np.ndarray[complex_t, ndim=4] tLbbp = np.zeros((nbaths, si.nmany, si.nmany, 2), dtype=complexnp)
     #
     func_pauli = Func_pauli_elph(sys.baths.tlst, sys.baths.dlst,
                                  sys.baths.bath_func, sys.funcp.eps_elph)
@@ -53,27 +53,29 @@ def c_generate_tLbbp_elph(sys):
         func_pauli.eval(0., l)
         for charge in range(si.ncharge):
             for b in si.statesdm[charge]:
-                tLbbp[l, b, b] = sqrt(func_pauli.val)*(Vbbp[l, b, b]+Vbbp[l, b, b].conjugate())
+                tLbbp[l, b, b, 0] = sqrt(0.5*func_pauli.val)*Vbbp[l, b, b]
+                tLbbp[l, b, b, 1] = tLbbp[l, b, b, 0].conjugate()
     # Off-diagonal elements
     for charge in range(si.ncharge):
         for b, bp in itertools.permutations(si.statesdm[charge], 2):
             Ebbp = E[b]-E[bp]
             for l in range(nbaths):
                 func_pauli.eval(Ebbp, l)
-                tLbbp[l, b, bp] = sqrt(func_pauli.val)*(Vbbp[l, b, bp]+Vbbp[l, bp, b].conjugate())
+                tLbbp[l, b, bp, 0] = sqrt(0.5*func_pauli.val)*Vbbp[l, b, bp]
+                tLbbp[l, b, bp, 1] = sqrt(0.5*func_pauli.val)*Vbbp[l, bp, b].conjugate()
     sys.tLbbp = tLbbp
     return 0
 
 @cython.boundscheck(False)
 def c_generate_kern_lindblad_elph(sys):
     cdef np.ndarray[double_t, ndim=1] E = sys.qd.Ea
-    cdef np.ndarray[complex_t, ndim=3] tLbbp = sys.tLbbp
+    cdef np.ndarray[complex_t, ndim=4] tLbbp = sys.tLbbp
     si = sys.si
     cdef bint symq = sys.funcp.symq
     cdef long_t norm_rowp = sys.funcp.norm_row
     #
     cdef bool_t bbp_bool, bbpi_bool
-    cdef int_t charge, l, nbaths, \
+    cdef int_t charge, l, q, nbaths, \
                aap_sgn, bppbp_sgn, bbpp_sgn
     cdef long_t b, bp, bbp, bbpi, bb, \
                 a, ap, aap, aapi, \
@@ -111,7 +113,8 @@ def c_generate_kern_lindblad_elph(sys):
                     if aap != -1:
                         fct_aap = 0
                         for l in range(nbaths):
-                            fct_aap += tLbbp[l, b, a]*tLbbp[l, bp, ap].conjugate()
+                            for q in range(2):
+                                fct_aap += tLbbp[l, b, a, q]*tLbbp[l, bp, a, q].conjugate()
                         aapi = ndm0 + aap - npauli
                         aap_sgn = +1 if conjdm0[lenlst[charge]*dictdm[a] + dictdm[ap] + shiftlst0[charge]] else -1
                         kern[bbp, aap] = kern[bbp, aap] + fct_aap.real                              # kern[bbp, aap]   += fct_aap.real
@@ -128,7 +131,8 @@ def c_generate_kern_lindblad_elph(sys):
                         fct_bppbp = 0
                         for a in si.statesdm[charge]:
                             for l in range(nbaths):
-                                fct_bppbp += -0.5*tLbbp[l, a, b].conjugate()*tLbbp[l, a, bpp]
+                                for q in range(2):
+                                    fct_bppbp += -0.5*tLbbp[l, a, b, q].conjugate()*tLbbp[l, a, bpp, q]
                         bppbpi = ndm0 + bppbp - npauli
                         bppbp_sgn = +1 if conjdm0[lenlst[charge]*dictdm[bpp] + dictdm[bp] + shiftlst0[charge]] else -1
                         kern[bbp, bppbp] = kern[bbp, bppbp] + fct_bppbp.real                        # kern[bbp, bppbp] += fct_bppbp.real
@@ -144,7 +148,8 @@ def c_generate_kern_lindblad_elph(sys):
                         fct_bbpp = 0
                         for a in si.statesdm[charge]:
                             for l in range(nbaths):
-                                fct_bbpp += -0.5*tLbbp[l, a, bpp].conjugate()*tLbbp[l, a, bp]
+                                for q in range(2):
+                                    fct_bbpp += -0.5*tLbbp[l, a, bpp, q].conjugate()*tLbbp[l, a, bp, q]
                         bbppi = ndm0 + bbpp - npauli
                         bbpp_sgn = +1 if conjdm0[lenlst[charge]*dictdm[b] + dictdm[bpp] + shiftlst0[charge]] else -1
                         kern[bbp, bbpp] = kern[bbp, bbpp] + fct_bbpp.real                           # kern[bbp, bbpp] += fct_bbpp.real
