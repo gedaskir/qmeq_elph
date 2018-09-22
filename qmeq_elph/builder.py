@@ -26,6 +26,7 @@ from .baths import PhononBaths
 from .approach.pauli import Approach_pyPauli
 from .approach.lindblad import Approach_pyLindblad
 from .approach.neumann1 import Approach_py1vN
+from .approach.redfield import Approach_pyRedfield
 from qmeq.approach.neumann2 import Approach_py2vN
 
 # Cython compiled modules
